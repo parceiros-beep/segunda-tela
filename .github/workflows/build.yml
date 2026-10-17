@@ -1,0 +1,21 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip project
+        run: Z=$(ls *.zip | head -1); mkdir -p project; unzip -o "$Z" -d project
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Build release APK
+        run: cd project && chmod +x gradlew && ./gradlew assembleRelease --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: segunda-tela-apk
+          path: project/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
