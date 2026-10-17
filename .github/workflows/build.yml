@@ -1,5 +1,7 @@
 name: Build APK
 on: [push, workflow_dispatch]
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,8 +22,16 @@ jobs:
           validate-wrappers: false
       - name: Build release APK
         run: cd project && gradle assembleRelease --no-daemon --stacktrace
+      - name: Rename APK
+        run: cp project/app/build/outputs/apk/release/app-release.apk segunda-tela.apk
       - uses: actions/upload-artifact@v4
         with:
           name: segunda-tela-apk
-          path: project/app/build/outputs/apk/release/app-release.apk
+          path: segunda-tela.apk
           if-no-files-found: error
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0
+          name: Segunda Tela v1.0
+          files: segunda-tela.apk
