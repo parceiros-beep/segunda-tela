@@ -302,6 +302,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        tela_virtual.desativar_virtual()
         if zc:
             zc.unregister_service(info)
             zc.close()

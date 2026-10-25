@@ -31,5 +31,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: servidor-v1.0
-          name: Segunda Tela - Servidor Windows v1.0
+          name: Segunda Tela - Servidor Windows
           files: dist/SegundaTela-Servidor.exe
