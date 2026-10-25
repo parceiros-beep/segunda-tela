@@ -1,0 +1,35 @@
+name: Build servidor Windows (.exe)
+on:
+  push:
+    paths:
+      - 'servidor/**'
+      - '.github/workflows/build-exe.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependências
+        run: pip install mss pillow zeroconf pyinstaller
+      - name: Gerar .exe
+        run: >
+          pyinstaller --onefile --console --name SegundaTela-Servidor
+          --collect-submodules zeroconf
+          servidor/segunda_tela_servidor.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: segunda-tela-servidor-exe
+          path: dist/SegundaTela-Servidor.exe
+          if-no-files-found: error
+      - name: Publicar release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: servidor-v1.0
+          name: Segunda Tela - Servidor Windows v1.0
+          files: dist/SegundaTela-Servidor.exe
