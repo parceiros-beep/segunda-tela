@@ -29,6 +29,7 @@ import mss
 from PIL import Image
 
 import win_input
+import win_display
 import tela_virtual
 
 try:
@@ -199,6 +200,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             with mss.mss() as sct:
                 if extend:
+                    # 1) Se houver 2 monitores clonados, força estender.
+                    if len(sct.monitors) - 1 >= 2:
+                        if win_display.forcar_estender():
+                            time.sleep(0.8)
+                            sct = mss.mss()  # recarrega geometria
                     monitor, aviso = tela_virtual.escolher_monitor_estendido(sct)
                     if aviso:
                         print("[tela estendida] " + aviso)
@@ -287,6 +293,14 @@ def main():
     print(" Segunda Tela - servidor %s" % VERSAO)
     print("=" * 52)
     print(" Porta: %d   PIN: %s" % (a.porta, Handler.pin or "(sem PIN)"))
+    try:
+        with mss.mss() as _s:
+            nmon = len(_s.monitors) - 1
+        print(" Monitores detectados: %d%s" % (
+            nmon, "  (so ha 1 -> tela estendida precisa de um 2o monitor/driver virtual)"
+            if nmon < 2 else "  (tela estendida OK: vou transmitir o 2o monitor)"))
+    except Exception:
+        pass
     for ip in ips_locais():
         print(" No app, use o IP: %s" % ip)
     print(" Modo USB: adb reverse tcp:%d tcp:%d" % (a.porta, a.porta))
