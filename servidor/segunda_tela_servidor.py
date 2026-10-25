@@ -28,6 +28,9 @@ from urllib.parse import parse_qs, urlparse
 import mss
 from PIL import Image
 
+import win_input
+import tela_virtual
+
 try:
     from zeroconf import ServiceInfo, Zeroconf
 except ImportError:  # descoberta automática é opcional
@@ -72,6 +75,9 @@ class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     server_version = "SegundaTela/" + VERSAO
     pin = ""
+    # Área (left, top, w, h) do monitor que está sendo transmitido agora.
+    # Usada para mapear o toque do tablet -> posição na tela do PC.
+    area_ativa = None
 
     def log_message(self, fmt, *args):  # log enxuto no console
         pass
@@ -95,6 +101,76 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.transmitir(qs)
 
+    def do_POST(self):
+        if urlparse(self.path).path != "/input":
+            self.send_error(404, "Nao encontrado")
+            return
+        # Resposta mínima; o canal fica aberto recebendo linhas de evento.
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("Content-Length", "2")
+        self.end_headers()
+        try:
+            self.wfile.write(b"ok")
+            self.wfile.flush()
+        except OSError:
+            return
+        self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        print("[controle] %s conectou (mouse/teclado)" % self.client_address[0])
+        try:
+            self.loop_input()
+        except (OSError, ValueError):
+            pass
+        print("[controle] %s desconectou" % self.client_address[0])
+
+    def loop_input(self):
+        rfile = self.rfile
+        while True:
+            raw = rfile.readline()
+            if not raw:
+                break
+            linha = raw.decode("utf-8", "replace").strip()
+            if not linha:
+                continue
+            if self.pin:
+                if "|" not in linha or linha.rsplit("|", 1)[1] != self.pin:
+                    continue
+                linha = linha.rsplit("|", 1)[0]
+            self.aplicar_evento(linha)
+
+    def aplicar_evento(self, linha):
+        p = linha.split(" ")
+        cmd = p[0]
+        area = Handler.area_ativa
+        if area is None:
+            return
+        left, top, w, h = area
+
+        def px(n):  # normalizado -> pixel de tela
+            return int(left + float(p[n]) * w)
+
+        def py(n):
+            return int(top + float(p[n]) * h)
+
+        try:
+            if cmd == "m":
+                win_input.move(px(1), py(2))
+            elif cmd == "d":
+                win_input.left_down(px(1), py(2))
+            elif cmd == "u":
+                win_input.left_up(px(1), py(2))
+            elif cmd == "r":
+                win_input.right_click(px(1), py(2))
+            elif cmd == "s":
+                win_input.wheel(px(1), py(2), int(p[3]))
+            elif cmd == "k":
+                win_input.key(p[1])
+            elif cmd == "t":
+                win_input.text(linha[2:].replace("\\n", "\n"))
+        except (IndexError, ValueError):
+            pass
+
     def transmitir(self, qs):
         fps = numero(qs, "fps", 20, int, 1, 60)
         escala = numero(qs, "scale", 1.0, float, 0.2, 1.0)
@@ -117,13 +193,21 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
 
+        extend = qs.get("extend", ["0"])[0] == "1"
         intervalo = 1.0 / fps
         buf = io.BytesIO()
         try:
             with mss.mss() as sct:
+                if extend:
+                    monitor, aviso = tela_virtual.escolher_monitor_estendido(sct)
+                    if aviso:
+                        print("[tela estendida] " + aviso)
                 if monitor >= len(sct.monitors):
                     monitor = 1
                 area = sct.monitors[monitor]
+                # Guarda a área para o mapeamento do toque (/input).
+                Handler.area_ativa = (area["left"], area["top"],
+                                      area["width"], area["height"])
                 while True:
                     inicio = time.perf_counter()
                     shot = sct.grab(area)
