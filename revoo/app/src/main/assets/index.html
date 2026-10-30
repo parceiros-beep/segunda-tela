@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+<title>Revoo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=Manrope:wght@400;600;700&display=swap">
+<style>
+/* Layout: cena 3D em tela cheia; barra de marca no topo, painel de replay (números, perfil, controles) embaixo */
+:root{
+  --night:#0d1720;      /* fundo, céu de entardecer escuro */
+  --panel:rgba(13,23,32,.82);
+  --line:#2a3b4a;
+  --ink:#eef3f6;
+  --mute:#8ea3b3;
+  --route:#ffb547;      /* trilha percorrida, âmbar de fim de tarde */
+  --climb:#6fd3e8;      /* altimetria */
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:hidden}
+#app{position:relative;height:100%;width:100%}
+#scene{position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:none}
+.top{position:absolute;top:0;left:0;right:0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding-block:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:linear-gradient(var(--night),transparent);pointer-events:none}
+.top>*{pointer-events:auto}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0}
+.logo{font-family:var(--display);font-weight:800;font-size:1.6rem;letter-spacing:.04em;line-height:1;text-transform:uppercase}
+.logo span{color:var(--route)}
+#title{font-size:.95rem;font-weight:600;background:none;border:0;border-bottom:1px dashed transparent;color:var(--ink);padding:2px 0;max-width:min(70vw,420px);font-family:var(--body)}
+#title:hover,#title:focus{border-bottom-color:var(--mute);outline:none}
+.sub{font-size:.75rem;color:var(--mute)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:600 .82rem var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;backdrop-filter:blur(6px);display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--mute)}
+.btn:focus-visible,.round:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--route);outline-offset:2px}
+.btn.on{background:var(--route);color:var(--night);border-color:var(--route)}
+.dock{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;
+  padding-bottom:max(14px,env(safe-area-inset-bottom,0px));padding-top:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.panel{width:100%;max-width:880px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px 16px 12px;backdrop-filter:blur(10px);display:grid;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.stat{display:flex;flex-direction:column;gap:0;min-width:0}
+.stat b{font-family:var(--display);font-weight:700;font-size:1.9rem;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat b small{font-size:.9rem;font-weight:500;color:var(--mute);margin-left:2px}
+.stat i{font-style:normal;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+#prof{width:100%;height:58px;display:block;cursor:pointer;touch-action:none}
+.ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.round{width:44px;height:44px;border-radius:50%;border:0;background:var(--route);color:var(--night);cursor:pointer;display:grid;place-items:center;flex:none}
+.round svg{width:18px;height:18px;fill:currentColor}
+.seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{font:600 .78rem var(--body);background:none;border:0;color:var(--mute);padding:7px 11px;cursor:pointer}
+.seg button.on{background:var(--line);color:var(--ink)}
+.clock{margin-left:auto;font-family:var(--display);font-size:1.05rem;color:var(--mute);font-variant-numeric:tabular-nums}
+.photo{position:absolute;top:50%;left:50%;transform:translate(-50%,-62%) scale(.9);opacity:0;transition:opacity .35s,transform .35s;pointer-events:none;
+  background:var(--ink);padding:8px 8px 26px;border-radius:6px;box-shadow:0 18px 50px rgba(0,0,0,.55);max-width:min(70vw,340px)}
+.photo.show{opacity:1;transform:translate(-50%,-62%) scale(1) rotate(-2deg)}
+.photo img{display:block;max-height:38vh;border-radius:3px}
+.photo p{position:absolute;bottom:5px;left:10px;right:10px;margin:0;font:600 .75rem var(--body);color:var(--night)}
+.toast{position:absolute;top:84px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:.85rem;opacity:0;transition:opacity .3s;pointer-events:none;max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1}
+.intro{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;text-align:center;padding:0 16px}
+.intro div{font-family:var(--display);text-transform:uppercase;transition:opacity .8s}
+.intro h1{font-size:clamp(2.2rem,7vw,4.4rem);margin:0;line-height:.95;font-weight:800;text-wrap:balance;text-shadow:0 4px 30px rgba(0,0,0,.6)}
+.intro p{margin:6px 0 0;font-size:1.1rem;letter-spacing:.2em;color:var(--route)}
+@media (max-width:640px){
+  .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .stat.opt{display:none}
+  .stat b{font-size:1.55rem}
+  .logo{font-size:1.3rem}
+  .btn{padding:7px 11px}
+}
+@media (prefers-reduced-motion:reduce){.photo,.toast,.intro div{transition:none}}
+</style>
+
+<div id="app">
+  <canvas id="scene" aria-label="Replay 3D do percurso"></canvas>
+
+  <div class="top">
+    <div class="brand">
+      <div class="logo">Re<span>voo</span></div>
+      <input id="title" value="Volta da Pedra do Baú" aria-label="Nome da atividade">
+      <div class="sub" id="meta">Atividade de exemplo · importe a sua em GPX ou TCX</div>
+    </div>
+    <div class="actions">
+      <label class="btn" for="file">Importar GPX/TCX</label>
+      <input type="file" id="file" accept=".gpx,.tcx,.xml" hidden>
+      <label class="btn" for="pic">Foto neste ponto</label>
+      <input type="file" id="pic" accept="image/*" multiple hidden>
+    </div>
+  </div>
+
+  <div class="intro" id="intro"><div><h1 id="introT">Volta da Pedra do Baú</h1><p id="introS"></p></div></div>
+  <div class="photo" id="photo"><img id="photoImg" alt=""><p id="photoCap"></p></div>
+  <div class="toast" id="toast"></div>
+
+  <div class="dock">
+    <div class="panel">
+      <div class="stats">
+        <div class="stat"><b id="sDist">0,0<small>km</small></b><i>Distância</i></div>
+        <div class="stat"><b id="sTime">0:00</b><i>Tempo</i></div>
+        <div class="stat"><b id="sEle">0<small>m</small></b><i>Altitude</i></div>
+        <div class="stat opt"><b id="sGain">0<small>m</small></b><i>Subida acum.</i></div>
+        <div class="stat opt"><b id="sSpd">0<small>km/h</small></b><i>Velocidade</i></div>
+      </div>
+      <canvas id="prof" aria-label="Perfil de altimetria; toque para pular para um ponto"></canvas>
+      <div class="ctrl">
+        <button class="round" id="play" aria-label="Pausar"></button>
+        <div class="seg" id="speed" role="group" aria-label="Velocidade do replay">
+          <button data-v="0.5">0,5×</button><button data-v="1" class="on">1×</button><button data-v="2">2×</button>
+        </div>
+        <div class="seg" id="cam" role="group" aria-label="Câmera">
+          <button data-v="follow" class="on">Seguir</button><button data-v="orbit">Panorâmica</button><button data-v="top">De cima</button>
+        </div>
+        <div class="clock" id="clock">0:00 / 0:40</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="three.min.js"></script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const REPLAY_SECONDS = 40;
+const fmtNum = (n, d = 0) => n.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtTime = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return h ? `${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}` : `${m}:${String(x).padStart(2,'0')}`; };
+
+/* ---------- Dados da atividade ---------- */
+function sampleActivity() {
+  // Percurso de exemplo: laço em volta de um morro, perto de São Bento do Sapucaí (SP)
+  const pts = [], lat0 = -22.69, lon0 = -45.73, n = 900;
+  let t = Date.parse('2026-10-25T07:12:00Z');
+  for (let i = 0; i <= n; i++) {
+    const a = i / n * Math.PI * 2;
+    const r = 0.06 + 0.018 * Math.sin(a * 3) + 0.008 * Math.sin(a * 11);
+    const lat = lat0 + r * Math.sin(a) * 0.9, lon = lon0 + r * Math.cos(a) * 1.2;
+    const ele = 980 + 520 * Math.pow(Math.sin(a / 2), 2) + 140 * Math.sin(a * 4) + 40 * Math.sin(a * 13);
+    pts.push({ lat, lon, ele, t: 0 });
+  }
+  // tempo pelo esforço: mais lento subindo
+  for (let i = 0; i < pts.length; i++) {
+    if (i) { const d = hav(pts[i-1], pts[i]), slope = (pts[i].ele - pts[i-1].ele) / Math.max(d, 1);
+      t += d / Math.max(2.2, 6.4 - slope * 38) * 1000; }
+    pts[i].t = t;
+  }
+  return { name: 'Volta da Pedra do Baú', pts, sample: true };
+}
+function hav(a, b) {
+  const R = 6371000, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
+  const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*r) * Math.cos(b.lat*r) * Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function parseTrack(text, filename) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('O arquivo não é um XML válido.');
+  const pts = [];
+  const num = (el, sel) => { const n = el.getElementsByTagName(sel)[0]; return n ? parseFloat(n.textContent) : NaN; };
+  const when = (el, sel) => { const n = el.getElementsByTagName(sel)[0]; return n ? Date.parse(n.textContent) : NaN; };
+  let nodes = [...doc.getElementsByTagName('trkpt')];
+  if (!nodes.length) nodes = [...doc.getElementsByTagName('rtept')];
+  if (nodes.length) nodes.forEach(n => pts.push({ lat: +n.getAttribute('lat'), lon: +n.getAttribute('lon'), ele: num(n, 'ele'), t: when(n, 'time') }));
+  else [...doc.getElementsByTagName('Trackpoint')].forEach(n => {
+    const lat = num(n, 'LatitudeDegrees'), lon = num(n, 'LongitudeDegrees');
+    if (!isNaN(lat)) pts.push({ lat, lon, ele: num(n, 'AltitudeMeters'), t: when(n, 'Time') });
+  });
+  const clean = pts.filter(p => isFinite(p.lat) && isFinite(p.lon));
+  if (clean.length < 10) throw new Error('Não achei um percurso nesse arquivo. Use um GPX ou TCX exportado do relógio ou do app de treino.');
+  clean.forEach(p => { if (!isFinite(p.ele)) p.ele = 0; });
+  const nameEl = doc.getElementsByTagName('name')[0];
+  return { name: (nameEl && nameEl.textContent.trim()) || filename.replace(/\.[^.]+$/, ''), pts: clean };
+}
+
+/* ---------- Preparo: distâncias, suavização, amostragem ---------- */
+function prepare(act) {
+  let pts = act.pts;
+  // amostragem para no máx. ~1500 pontos
+  const step = Math.max(1, Math.floor(pts.length / 1500));
+  pts = pts.filter((_, i) => i % step === 0 || i === act.pts.length - 1);
+  // suaviza altitude (GPS é ruidoso)
+  const ele = pts.map((_, i) => { let s = 0, c = 0; for (let k = -4; k <= 4; k++) { const p = pts[i+k]; if (p) { s += p.ele; c++; } } return s / c; });
+  const cum = [0]; let gain = 0; const gains = [0];
+  for (let i = 1; i < pts.length; i++) { cum.push(cum[i-1] + hav(pts[i-1], pts[i])); const de = ele[i] - ele[i-1]; if (de > 0) gain += de; gains.push(gain); }
+  const hasTime = pts.every(p => isFinite(p.t)) && pts[pts.length-1].t > pts[0].t;
+  const secs = pts.map((p, i) => hasTime ? (p.t - pts[0].t) / 1000 : cum[i] / 5); // sem horário: 18 km/h
+  return { name: act.name, sample: !!act.sample, pts, ele, cum, gains, secs, total: cum[cum.length-1], gain, hasTime };
+}
+
+/* ---------- Cena 3D ---------- */
+const canvas = $('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const SKY = new THREE.Color('#1c3346');
+scene.background = SKY;
+scene.fog = new THREE.Fog(SKY, 900, 2600);
+const camera = new THREE.PerspectiveCamera(50, 1, 1, 6000);
+scene.add(new THREE.HemisphereLight('#bcd7ea', '#3a2d1f', 0.75));
+const sun = new THREE.DirectionalLight('#ffd9a8', 0.95); sun.position.set(-600, 700, 300); scene.add(sun);
+
+let world = null; // { terrain, tube, ghost, head, curve, data, photos: [] }
+
+function hash(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi), b = hash(xi+1, yi), c = hash(xi, yi+1), d = hash(xi+1, yi+1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y) { let s = 0, a = 1, f = 1; for (let o = 0; o < 5; o++) { s += a * (vnoise(x*f, y*f) - .5); a *= .5; f *= 2.03; } return s; }
+
+function build(data) {
+  if (world) { [world.terrain, world.tube, world.ghost, world.head, world.markers].forEach(o => { scene.remove(o); o.traverse(c => { c.geometry && c.geometry.dispose(); c.material && c.material.dispose(); }); }); }
+  const { pts, ele } = data;
+  const lat0 = pts.reduce((s, p) => s + p.lat, 0) / pts.length, lon0 = pts.reduce((s, p) => s + p.lon, 0) / pts.length;
+  const mLat = 111320, mLon = 111320 * Math.cos(lat0 * Math.PI / 180);
+  const xy = pts.map(p => [(p.lon - lon0) * mLon, -(p.lat - lat0) * mLat]);
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  xy.forEach(([x, z]) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); });
+  const ext = Math.max(maxX - minX, maxZ - minZ, 200), S = 1000 / ext; // 1000 unidades de cena
+  const eMin = Math.min(...ele), eMax = Math.max(...ele);
+  const relief = (eMax - eMin) * S;
+  const exag = relief < 60 ? 60 / Math.max(relief, 1) : Math.min(2.2, 260 / relief) ; // relevo legível
+  const cx = (minX + maxX) / 2 * S, cz = (minZ + maxZ) / 2 * S;
+  const P = xy.map(([x, z], i) => ({ x: x * S - cx, z: z * S - cz, y: (ele[i] - eMin) * S * exag }));
+
+  // amostras para o relevo
+  const K = Math.min(260, P.length), samp = [];
+  for (let i = 0; i < K; i++) samp.push(P[Math.floor(i / K * (P.length - 1))]);
+  const span = 1000 * 1.9, half = span / 2, N = 150;
+  const heightAt = (x, z) => {
+    let ws = 0, hs = 0, dmin = Infinity;
+    for (const s of samp) { const d2 = (s.x - x) ** 2 + (s.z - z) ** 2 + 1; const w = 1 / (d2 * d2); ws += w; hs += w * s.y; if (d2 < dmin) dmin = d2; }
+    const d = Math.sqrt(dmin), k = Math.min(1, Math.max(0, (d - 18) / 160)), sm = k * k * (3 - 2 * k);
+    const hills = fbm(x / 260 + 7.3, z / 260 - 2.1) * 260 + Math.max(0, fbm(x / 520, z / 520)) * 320;
+    return hs / ws + sm * (hills + 40 * Math.min(1, d / 400));
+  };
+  const geo = new THREE.PlaneGeometry(span, span, N, N); geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position, cols = [];
+  const cLow = new THREE.Color('#3f6b4a'), cMid = new THREE.Color('#8a7a52'), cHigh = new THREE.Color('#d9d4c7'), tmp = new THREE.Color();
+  let hMin = Infinity, hMax = -Infinity; const hs = [];
+  for (let i = 0; i < pos.count; i++) { const h = heightAt(pos.getX(i), pos.getZ(i)); hs.push(h); hMin = Math.min(hMin, h); hMax = Math.max(hMax, h); }
+  for (let i = 0; i < pos.count; i++) {
+    pos.setY(i, hs[i]); const t = (hs[i] - hMin) / Math.max(1, hMax - hMin);
+    if (t < .55) tmp.copy(cLow).lerp(cMid, t / .55); else tmp.copy(cMid).lerp(cHigh, (t - .55) / .45);
+    const j = (hash(i, 3) - .5) * .06; cols.push(tmp.r + j, tmp.g + j, tmp.b + j);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  geo.computeVertexNormals();
+  const terrain = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, shininess: 0 }));
+
+  // rota assentada sobre o relevo
+  const curvePts = P.map(p => new THREE.Vector3(p.x, heightAt(p.x, p.z) + 3.5, p.z));
+  const curve = new THREE.CatmullRomCurve3(curvePts, false, 'centripetal');
+  const segs = Math.min(3000, curvePts.length * 2), radial = 6;
+  const tubeGeo = new THREE.TubeGeometry(curve, segs, 2.6, radial, false);
+  const tube = new THREE.Mesh(tubeGeo, new THREE.MeshBasicMaterial({ color: '#ffb547' }));
+  const ghost = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, 1.6, 4, false), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .28 }));
+  const head = new THREE.Group();
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(6, 20, 14), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(9, 20, 14), new THREE.MeshBasicMaterial({ color: '#ffb547', transparent: true, opacity: .35 }));
+  head.add(dot, halo);
+  const markers = new THREE.Group();
+  scene.add(terrain, ghost, tube, head, markers);
+  world = { terrain, tube, ghost, head, halo, markers, curve, segs, radial, data, photos: [], span };
+  camPos.set(0, 1400, 1300); camLook.set(0, 0, 0);
+}
+
+/* ---------- Interface ---------- */
+let data, progress = 0, playing = true, speed = 1, camMode = 'follow', lastT = performance.now(), introTimer = 0;
+const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
+
+function load(act) {
+  data = prepare(act);
+  build(data);
+  $('title').value = data.name;
+  $('meta').textContent = data.sample ? 'Atividade de exemplo · importe a sua em GPX ou TCX'
+    : `${data.pts.length.toLocaleString('pt-BR')} pontos${data.hasTime ? '' : ' · sem horário no arquivo, tempo estimado a 18 km/h'}`;
+  progress = 0; playing = true; setPlayIcon(); showIntro();
+  drawProfile();
+}
+function showIntro() {
+  $('introT').textContent = $('title').value || 'Minha atividade';
+  $('introS').textContent = `${fmtNum(data.total / 1000, 1)} km · ${fmtNum(Math.round(data.gain))} m de subida · ${fmtTime(data.secs[data.secs.length-1])}`;
+  $('intro').firstElementChild.style.opacity = 1; introTimer = 3.2;
+}
+$('title').addEventListener('input', () => { if (data) data.name = $('title').value; });
+
+// índice e fração do ponto no progresso p (por distância)
+function at(p) {
+  const d = p * data.total, c = data.cum;
+  let lo = 0, hi = c.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (c[m] <= d) lo = m; else hi = m; }
+  const f = c[hi] > c[lo] ? (d - c[lo]) / (c[hi] - c[lo]) : 0;
+  return { i: lo, j: hi, f };
+}
+const lerpArr = (arr, a) => arr[a.i] + (arr[a.j] - arr[a.i]) * a.f;
+
+function updateStats() {
+  const a = at(progress);
+  const secs = lerpArr(data.secs, a);
+  $('sDist').innerHTML = `${fmtNum(progress * data.total / 1000, 1)}<small>km</small>`;
+  $('sTime').textContent = fmtTime(secs);
+  $('sEle').innerHTML = `${fmtNum(Math.round(lerpArr(data.ele, a)))}<small>m</small>`;
+  $('sGain').innerHTML = `${fmtNum(Math.round(lerpArr(data.gains, a)))}<small>m</small>`;
+  // velocidade numa janela de ~300 m
+  const b = at(Math.max(0, progress - 300 / data.total)), c = at(Math.min(1, progress + 300 / data.total));
+  const dd = (lerpArr(data.cum, c) - lerpArr(data.cum, b)), dt = (lerpArr(data.secs, c) - lerpArr(data.secs, b));
+  $('sSpd').innerHTML = `${fmtNum(dt > 0 ? dd / dt * 3.6 : 0, 1)}<small>km/h</small>`;
+  $('clock').textContent = `${fmtTime(progress * REPLAY_SECONDS)} / ${fmtTime(REPLAY_SECONDS)}`;
+}
+
+/* perfil de altimetria */
+const prof = $('prof'), pctx = prof.getContext('2d');
+function drawProfile() {
+  if (!data) return;
+  const dpr = Math.min(devicePixelRatio, 2), w = prof.clientWidth, h = prof.clientHeight;
+  if (prof.width !== w * dpr) { prof.width = w * dpr; prof.height = h * dpr; }
+  pctx.setTransform(dpr, 0, 0, dpr, 0, 0); pctx.clearRect(0, 0, w, h);
+  const e = data.ele, mn = Math.min(...e), mx = Math.max(...e), pad = 4;
+  const X = d => d / data.total * w, Y = v => h - pad - (v - mn) / Math.max(1, mx - mn) * (h - pad * 2 - 12);
+  const path = () => { pctx.beginPath(); pctx.moveTo(0, h); data.cum.forEach((d, i) => pctx.lineTo(X(d), Y(e[i]))); pctx.lineTo(w, h); pctx.closePath(); };
+  pctx.fillStyle = 'rgba(111,211,232,.14)'; path(); pctx.fill();
+  pctx.save(); pctx.beginPath(); pctx.rect(0, 0, progress * w, h); pctx.clip();
+  pctx.fillStyle = 'rgba(255,181,71,.35)'; path(); pctx.fill(); pctx.restore();
+  pctx.strokeStyle = '#6fd3e8'; pctx.lineWidth = 1.5; pctx.beginPath();
+  data.cum.forEach((d, i) => i ? pctx.lineTo(X(d), Y(e[i])) : pctx.moveTo(X(d), Y(e[i]))); pctx.stroke();
+  // fotos
+  world.photos.forEach(ph => { pctx.fillStyle = '#eef3f6'; pctx.fillRect(ph.p * w - 1, 0, 2, h); });
+  const x = progress * w; pctx.fillStyle = '#ffb547'; pctx.fillRect(x - 1, 0, 2, h);
+  pctx.fillStyle = '#8ea3b3'; pctx.font = '600 10px Manrope, system-ui, sans-serif';
+  pctx.fillText(`${fmtNum(Math.round(mx))} m`, 4, 10); pctx.textAlign = 'right'; pctx.fillText(`${fmtNum(data.total / 1000, 1)} km`, w - 4, 10); pctx.textAlign = 'left';
+}
+function seekFromEvent(ev) { const r = prof.getBoundingClientRect(); progress = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)); shownPhoto = null; }
+let dragging = false;
+prof.addEventListener('pointerdown', ev => { dragging = true; prof.setPointerCapture(ev.pointerId); seekFromEvent(ev); });
+prof.addEventListener('pointermove', ev => { if (dragging) seekFromEvent(ev); });
+prof.addEventListener('pointerup', () => dragging = false);
+
+/* controles */
+const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
+const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>';
+function setPlayIcon() { $('play').innerHTML = playing ? ICON_PAUSE : ICON_PLAY; $('play').setAttribute('aria-label', playing ? 'Pausar' : 'Reproduzir'); }
+$('play').onclick = () => { if (!playing && progress >= 1) { progress = 0; showIntro(); } playing = !playing; setPlayIcon(); };
+function seg(id, cb) { $(id).querySelectorAll('button').forEach(b => b.onclick = () => { $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); cb(b.dataset.v); }); }
+seg('speed', v => speed = +v);
+seg('cam', v => camMode = v);
+addEventListener('keydown', ev => { if (ev.code === 'Space' && ev.target === document.body) { ev.preventDefault(); $('play').click(); } });
+
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 3600); }
+
+$('file').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  try { load(parseTrack(await f.text(), f.name)); toast(`“${data.name}” carregada. Bom revoo!`); }
+  catch (e) { toast(e.message); }
+});
+$('pic').addEventListener('change', ev => {
+  [...ev.target.files].forEach((f, k) => {
+    const p = Math.min(1, progress + k * 0.015);
+    const url = URL.createObjectURL(f);
+    const pt = world.curve.getPointAt(Math.min(1, p));
+    const pin = new THREE.Group();
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(.8, .8, 26, 6), new THREE.MeshBasicMaterial({ color: '#eef3f6' })); stick.position.y = 13;
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(14, 10, 2), new THREE.MeshBasicMaterial({ color: '#eef3f6' })); cap.position.y = 30;
+    pin.add(stick, cap); pin.position.copy(pt); world.markers.add(pin);
+    world.photos.push({ p, url, name: f.name.replace(/\.[^.]+$/, ''), km: p * data.total / 1000 });
+  });
+  world.photos.sort((a, b) => a.p - b.p);
+  ev.target.value = '';
+  toast('Foto adicionada neste ponto do percurso.');
+  drawProfile();
+});
+
+let shownPhoto = null, photoHold = 0;
+function checkPhotos(prev) {
+  if (!world.photos.length) return;
+  const hit = world.photos.find(ph => ph.p > prev && ph.p <= progress && ph !== shownPhoto);
+  if (hit) {
+    shownPhoto = hit; photoHold = 2.6;
+    $('photoImg').src = hit.url; $('photoCap').textContent = `km ${fmtNum(hit.km, 1)}`;
+    $('photo').classList.add('show');
+  }
+}
+
+/* ---------- Loop ---------- */
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); drawProfile(); }
+addEventListener('resize', resize);
+
+const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), want = new THREE.Vector3(), look = new THREE.Vector3();
+function frame(now) {
+  const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+  if (introTimer > 0) { introTimer -= dt; if (introTimer <= 0) $('intro').firstElementChild.style.opacity = 0; }
+  const prev = progress;
+  if (photoHold > 0) { photoHold -= dt; if (photoHold <= 0) $('photo').classList.remove('show'); }
+  else if (playing && introTimer < 2) {
+    progress = Math.min(1, progress + dt * speed / REPLAY_SECONDS);
+    if (progress >= 1) { playing = false; setPlayIcon(); }
+  }
+  checkPhotos(prev);
+
+  const { curve, tube, head, halo, segs, radial } = world;
+  const p = Math.max(.0005, progress);
+  tube.geometry.setDrawRange(0, Math.floor(p * segs) * radial * 6);
+  curve.getPointAt(p, v1); head.position.copy(v1);
+  halo.scale.setScalar(1 + .25 * Math.sin(now / 220));
+
+  // câmera
+  const intro = Math.max(0, introTimer) / 3.2, outro = progress >= 1 ? 1 : 0;
+  if (camMode === 'top' || outro) {
+    want.set(v1.x * .3, 1250, v1.z * .3 + 520); look.set(v1.x * .3, 0, v1.z * .3);
+  } else if (camMode === 'orbit') {
+    const a = now / 9000; want.set(v1.x + Math.cos(a) * 420, v1.y + 260, v1.z + Math.sin(a) * 420); look.copy(v1);
+  } else {
+    curve.getPointAt(Math.max(0, p - .035), v2);
+    const dir = v1.clone().sub(v2).setY(0); if (dir.lengthSq() < 1) dir.set(0, 0, -1); dir.normalize();
+    const side = new THREE.Vector3(-dir.z, 0, dir.x);
+    want.copy(v1).addScaledVector(dir, -280).addScaledVector(side, 90); want.y = v1.y + 230;
+    curve.getPointAt(Math.min(1, p + .01), look);
+  }
+  if (intro > 0) { want.lerp(new THREE.Vector3(0, 1300, 1150), intro); look.lerp(new THREE.Vector3(0, 0, 0), intro); }
+  const k = 1 - Math.pow(.02, dt);
+  camPos.lerp(want, k); camLook.lerp(look, k * 1.4 > 1 ? 1 : k * 1.4);
+  camera.position.copy(camPos); camera.lookAt(camLook);
+  renderer.render(scene, camera);
+
+  updateStats();
+  if (progress !== prev || dragging) drawProfile();
+  requestAnimationFrame(frame);
+}
+
+load(sampleActivity());
+resize();
+requestAnimationFrame(t => { lastT = t; frame(t); });
+})();
+</script>
+
+</html>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Morro com a trilha em âmbar e o ponto do atleta -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#3F6B4A" android:pathData="M26,74 L46,44 L56,56 L66,40 L84,74 Z" />
+    <path android:strokeColor="#FFB547" android:strokeWidth="4" android:strokeLineCap="round"
+        android:pathData="M30,72 C40,66 44,58 52,60 C60,62 62,50 72,48" />
+    <path android:fillColor="#EEF3F6" android:pathData="M72,48 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+</vector>
