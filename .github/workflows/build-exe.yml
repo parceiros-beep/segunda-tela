@@ -40,7 +40,7 @@ jobs:
 
           # Virtual Display Driver (MIT, assinado)
           $rel = Invoke-RestMethod -Headers $h https://api.github.com/repos/VirtualDrivers/Virtual-Display-Driver/releases/tags/25.7.23
-          $asset = $rel.assets | Where-Object { $_.name -match 'Driver\.Only' -and $_.name -notmatch 'arm' } | Select-Object -First 1
+          $asset = $rel.assets | Where-Object { $_.name -match 'Display' -and $_.name -match 'Driver\.Only' -and $_.name -notmatch 'arm' } | Select-Object -First 1
           if (-not $asset) { $rel.assets | ForEach-Object { $_.name }; throw 'Driver nao encontrado' }
           Write-Host "Driver: $($asset.name)"
           Invoke-WebRequest $asset.browser_download_url -OutFile dl\vdd.zip
