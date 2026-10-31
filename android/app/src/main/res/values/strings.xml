@@ -122,4 +122,52 @@
     <string name="usb_off">Ative a Depuração USB e plugue o cabo</string>
     <string name="fps_auto">Automático</string>
     <string name="fps_auto_value">Automático · %1$d fps agora</string>
+    <!-- Ajustes explicativos e ao vivo -->
+    <string name="touch_touchpad">Touchpad</string>
+    <string name="touch_mesa">Mesa digitalizadora (só caneta)</string>
+    <string name="ajustes_vivo">Ajustes ao vivo</string>
+    <string name="diag_copy">Copiar diagnóstico</string>
+    <string name="diag_copied">Diagnóstico copiado</string>
+    <string name="live_title">Ajustes ao vivo</string>
+    <string name="live_hint">A imagem reinicia só quando uma opção de vídeo muda. Feche esta janela para aplicar.</string>
+    <string name="live_compat">No modo compatível não dá para mudar ao vivo. Reconecte para aplicar.</string>
+    <string name="applying">Aplicando… (uns segundos)</string>
+    <string name="test_net">Testar rede e sugerir ajustes</string>
+    <string name="test_net_desc">Mede o atraso até o PC e sugere um perfil.</string>
+    <string name="test_net_title">Resultado do teste</string>
+    <string name="test_net_result">Rede: %1$s.
+
+Sugestão: perfil %2$s. Quer aplicar?</string>
+    <string name="test_net_fail">Não consegui falar com o PC em %1$s:%2$d. Abra o servidor no PC e tente de novo.</string>
+    <string name="test_net_usb">cabo USB</string>
+    <string name="test_apply">Aplicar</string>
+    <string name="update_available">Nova versão %1$s disponível · toque para baixar</string>
+    <string name="tile_label">Segunda Tela</string>
+    <string name="tile_sub">Conectar</string>
+    <string name="d_mode">Estender: o tablet vira um monitor novo do PC, para você arrastar janelas. Espelhar: mostra a mesma tela do PC. Recomendado: estender.</string>
+    <string name="d_side">Onde o tablet fica em relação ao monitor principal. Recomendado: à direita, ou à esquerda se a sua mesa estiver assim.</string>
+    <string name="d_resolution">Tamanho da imagem enviada. Menor = mais rápido e gasta menos dados. Recomendado: 100% com cabo USB; 60 a 75% no Wi‑Fi.</string>
+    <string name="d_scale">Tamanho dos textos e ícones no tablet. Automático escolhe pelo tamanho da tela. Recomendado: automático.</string>
+    <string name="d_orientation">Automático acompanha o tablet, e a transmissão se ajusta sozinha quando você gira. Recomendado: automático.</string>
+    <string name="d_profile">Ajusta codec, fps, bitrate e velocidade de uma vez. Ao mexer em qualquer opção de vídeo, vira Personalizado.</string>
+    <string name="d_codec">H.265 deixa a imagem mais nítida com menos dados, mas precisa de placa de vídeo compatível. H.264 funciona em quase tudo. Recomendado: H.265; se der erro, H.264.</string>
+    <string name="d_fps">Quadros por segundo: mais = movimento mais suave, mas exige mais do Wi‑Fi. Automático escolhe 60 com cabo USB ou Wi‑Fi 5/6 GHz forte, e 30 no resto. Recomendado: automático.</string>
+    <string name="d_bitrate">Dados por segundo. Mais = imagem melhor, mas exige mais do Wi‑Fi. Automático ajusta pela rede. Recomendado: automático, ou 20 a 40 Mbps no Wi‑Fi 5/6 GHz.</string>
+    <string name="d_rate">CBR: taxa constante, mais estável. VBR: economiza com a tela parada e sobe com movimento. Qualidade constante: imagem sempre nítida. Recomendado: CBR no Wi‑Fi; VBR com cabo.</string>
+    <string name="d_cq">Só vale com qualidade constante. Menor = mais nítido e mais dados. Recomendado: 22 a 26.</string>
+    <string name="d_speed">Mais rápida: menos atraso, imagem um pouco pior. Mais qualidade: o contrário. Recomendado: rápida para desenhar; equilibrada para texto.</string>
+    <string name="d_gop">De quanto em quanto tempo a imagem inteira é enviada. Menor = recupera mais rápido de falhas, mas gasta mais dados. Recomendado: 1 a 2 s.</string>
+    <string name="d_intra">Espalha a atualização da imagem em vez de mandar tudo de uma vez, sem engasgos periódicos. Recomendado: ligado no Wi‑Fi.</string>
+    <string name="d_latest">Pula quadros atrasados para diminuir o atraso, com um pouco mais de engasgo. Recomendado: ligado.</string>
+    <string name="d_stats">Mostra fps, Mbps, atraso da rede e quadros descartados no canto da tela. Recomendado: ligado enquanto você ajusta.</string>
+    <string name="d_cursor">Desenha o cursor do PC na imagem do tablet. Recomendado: ligado.</string>
+    <string name="d_touch">Toque do Windows: gestos de verdade. Mouse: toque = clique. Touchpad: o dedo arrasta o cursor, como um trackpad. Mesa digitalizadora: só a caneta age. Desligado: nenhum toque. Recomendado: toque do Windows; mesa para desenhar.</string>
+    <string name="d_pen">Usa a S Pen com pressão e inclinação. Recomendado: ligado.</string>
+    <string name="d_curve">Sensibilidade da pressão: macia lê traços leves; firme exige mais força. Recomendado: normal.</string>
+    <string name="d_palm">Ignora dedos e palma enquanto a caneta está perto da tela. Recomendado: ligado para desenhar.</string>
+    <string name="d_sidebar">Mostra a barra de atalhos (Ctrl, Alt, Copiar, Colar…). Recomendado: ligado.</string>
+    <string name="d_sidebar_side">Lado da tela onde fica a barra de atalhos. Recomendado: o lado oposto ao da sua mão de caneta.</string>
+    <string name="d_compat">Use só se o PC não tiver codificação H.264 ou H.265 por hardware. Mais lento e sem ajustes ao vivo. Recomendado: desligado.</string>
+    <string name="d_jpeg">Qualidade das imagens no modo compatível. Maior = mais nítido e mais dados. Recomendado: 75.</string>
+    <string name="d_autoconnect">Conecta sozinho ao último PC quando o app abre. Recomendado: ligado se você usa sempre o mesmo PC.</string>
 </resources>

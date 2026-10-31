@@ -49,6 +49,8 @@ class H264View @JvmOverloads constructor(
     private var port = 8080
     private var path = ""
     @Volatile private var running = false
+    // Cada sessão tem um número: ao reiniciar, a thread antiga percebe e para.
+    @Volatile private var geracao = 0
     private var worker: Thread? = null
     @Volatile private var socket: Socket? = null
 
@@ -90,11 +92,19 @@ class H264View @JvmOverloads constructor(
         this.host = host; this.port = port; this.path = path
         if (running) return
         running = true
-        worker = Thread({ loop() }, "video").apply { isDaemon = true; start() }
+        val g = ++geracao
+        worker = Thread({ loop(g) }, "video").apply { isDaemon = true; start() }
+    }
+
+    /** Troca a transmissão (outra resolução, fps ou codec) sem fechar a tela. */
+    fun reiniciar(novoPath: String) {
+        stop()
+        start(host, port, novoPath)
     }
 
     fun stop() {
         running = false
+        geracao++
         try { socket?.close() } catch (_: Exception) {}
         worker?.interrupt()
         worker = null
@@ -110,9 +120,9 @@ class H264View @JvmOverloads constructor(
         try { socket?.close() } catch (_: Exception) {}
     }
 
-    private fun loop() {
+    private fun loop(g: Int) {
         var backoff = 500L
-        while (running) {
+        while (running && g == geracao) {
             try {
                 val s = Socket().apply {
                     tcpNoDelay = true
@@ -142,11 +152,11 @@ class H264View @JvmOverloads constructor(
                 }
                 s.soTimeout = 15000
                 backoff = 500L
-                lerPacotes(DataInputStream(raw))
+                lerPacotes(DataInputStream(raw), g)
             } catch (e: InterruptedException) {
                 break
             } catch (e: Exception) {
-                if (!running) break
+                if (!running || g != geracao) break
                 liberarCodec()
                 val motivo = when {
                     e is java.net.ConnectException || e.message?.contains("ECONNREFUSED") == true ->
@@ -164,12 +174,12 @@ class H264View @JvmOverloads constructor(
         }
     }
 
-    private fun lerPacotes(inp: DataInputStream) {
+    private fun lerPacotes(inp: DataInputStream, g: Int) {
         var buf = ByteArray(1 shl 20)
         var frames = 0
         var bytes = 0L
         var janela = System.currentTimeMillis()
-        while (running) {
+        while (running && g == geracao) {
             val tipo = inp.readUnsignedByte()
             val n = inp.readInt()
             if (n < 0 || n > 64 * 1024 * 1024) throw RuntimeException("dados inválidos")

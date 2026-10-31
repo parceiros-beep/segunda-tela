@@ -2,22 +2,18 @@ package com.segundatela.app
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
-import android.os.Build
+import android.net.Uri
 import android.os.Bundle
-import android.util.DisplayMetrics
+import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.slider.LabelFormatter
-import com.google.android.material.slider.Slider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.switchmaterial.SwitchMaterial
 import com.segundatela.app.databinding.ActivityConnectBinding
+import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
@@ -41,6 +37,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         b.editPort.setText(aj.porta.toString())
         b.editPin.setText(aj.pin)
         montarOpcoes()
+        atualizarResumo()
 
         b.btnConnect.setOnClickListener { conectar(b.editHost.text.toString().trim()) }
         b.editHost.setOnEditorActionListener { _, id, _ ->
@@ -49,293 +46,34 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
             } else false
         }
         b.btnUsb.setOnClickListener { conectar("127.0.0.1") }
+        b.btnTestar.setOnClickListener { testarRede() }
+        b.lblAtualizar.setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW,
+                Uri.parse("https://github.com/parceiros-beep/segunda-tela/releases/latest")))
+        }
 
-        if (aj.autoconectar && aj.ultimoHost.isNotBlank()) {
+        // Aberto pelo botão do painel rápido: conecta direto no último PC.
+        if (intent.getBooleanExtra("conectarAgora", false)) {
+            b.root.post { conectar(aj.ultimoHost) }
+        } else if (aj.autoconectar && aj.ultimoHost.isNotBlank()) {
             b.root.post { conectar(aj.ultimoHost) }
         }
     }
 
     // ============================================================== opções
-    private lateinit var lblPerfil: TextView
-
     private fun montarOpcoes() {
-        // ---------------- Tela
-        val tela = b.grpTela
-        escolha(tela, R.string.opt_mode, listOf(
-            "estender" to getString(R.string.mode_extend),
-            "espelhar" to getString(R.string.mode_mirror)), aj.modo) { aj.modo = it }
-        escolha(tela, R.string.opt_side, listOf(
-            "esquerda" to getString(R.string.side_left),
-            "direita" to getString(R.string.side_right),
-            "acima" to getString(R.string.side_top)), aj.lado) { aj.lado = it }
-        val (lw, lh) = tamanhoNativo()
-        val maior = maxOf(lw, lh); val menor = minOf(lw, lh)
-        deslizante(tela, R.string.opt_resolution, 25f, 100f, 5f, aj.resolucao.toFloat(),
-            { v -> val pct = v.toInt()
-                "$pct% · ${par(maior * pct / 100)}×${par(menor * pct / 100)}" }) {
-            aj.resolucao = it.toInt(); personalizado()
-        }
-        escolha(tela, R.string.opt_scale,
-            listOf("0" to getString(R.string.auto)) +
-                Ajustes.ESCALAS.map { it.toString() to "$it%" },
-            aj.escala.toString()) { aj.escala = it.toInt() }
-        escolha(tela, R.string.opt_orientation, listOf(
-            "auto" to getString(R.string.or_auto),
-            "horizontal" to getString(R.string.or_landscape),
-            "vertical" to getString(R.string.or_portrait)), aj.orientacao) { aj.orientacao = it }
-
-        // ---------------- Vídeo e desempenho
-        val v = b.grpVideo
-        lblPerfil = escolha(v, R.string.opt_profile, listOf(
-            "desenho" to getString(R.string.prof_draw),
-            "trabalho" to getString(R.string.prof_work),
-            "video" to getString(R.string.prof_video),
-            "economia" to getString(R.string.prof_eco),
-            "personalizado" to getString(R.string.prof_custom)), aj.perfil) {
-            if (it != "personalizado") {
-                aj.aplicarPerfil(it); aj.salvar(prefs)
-                recreate()  // mostra os valores do perfil
-            } else aj.perfil = it
-        }
-        dica(v, R.string.profile_hint)
-        escolha(v, R.string.opt_codec, listOf(
-            "h264" to getString(R.string.codec_h264),
-            "h265" to getString(R.string.codec_h265)), aj.codec) { aj.codec = it; personalizado() }
-        controleFps(v)
-        dica(v, R.string.fps_hint)
-        deslizante(v, R.string.opt_bitrate, 0f, 150f, 1f, aj.mbps.toFloat(),
-            { x -> if (x < 1f) getString(R.string.bitrate_auto) else "${x.toInt()} Mbps" }) {
-            aj.mbps = if (it < 2f && it >= 1f) 2 else it.toInt(); personalizado()
-        }
-        escolha(v, R.string.opt_rate, listOf(
-            "cbr" to getString(R.string.rate_cbr),
-            "vbr" to getString(R.string.rate_vbr),
-            "cq" to getString(R.string.rate_cq)), aj.taxa) { aj.taxa = it; personalizado() }
-        dica(v, R.string.rate_hint)
-        deslizante(v, R.string.opt_cq, 15f, 40f, 1f, aj.cq.toFloat(),
-            { x -> getString(R.string.cq_value, x.toInt()) }) { aj.cq = it.toInt(); personalizado() }
-        escolha(v, R.string.opt_speed, listOf(
-            "rapida" to getString(R.string.speed_fast),
-            "equilibrada" to getString(R.string.speed_balanced),
-            "qualidade" to getString(R.string.speed_quality)), aj.velocidade) {
-            aj.velocidade = it; personalizado()
-        }
-        deslizante(v, R.string.opt_gop, 0.5f, 10f, 0.5f, aj.gop,
-            { x -> getString(R.string.gop_value, x) }) { aj.gop = it; personalizado() }
-        chave(v, R.string.opt_intra, aj.intra) { aj.intra = it; personalizado() }
-        chave(v, R.string.opt_latest, aj.ultimoQuadro) { aj.ultimoQuadro = it; personalizado() }
-        chave(v, R.string.opt_stats, aj.estatisticas) { aj.estatisticas = it }
-        chave(v, R.string.opt_cursor, aj.cursor) { aj.cursor = it }
-
-        // ---------------- Toque e caneta
-        val toque = b.grpToque
-        escolha(toque, R.string.opt_touch, listOf(
-            "nativo" to getString(R.string.touch_native),
-            "mouse" to getString(R.string.touch_mouse),
-            "desligado" to getString(R.string.touch_off)), aj.toque) { aj.toque = it }
-        chave(toque, R.string.opt_pen, aj.caneta) { aj.caneta = it }
-        deslizante(toque, R.string.opt_curve, 0.4f, 2.5f, 0.1f, aj.curva,
-            { x -> when {
-                x < 0.95f -> getString(R.string.curve_soft, x)
-                x > 1.05f -> getString(R.string.curve_firm, x)
-                else -> getString(R.string.curve_linear) } }) { aj.curva = it }
-        chave(toque, R.string.opt_palm, aj.palma) { aj.palma = it }
-        chave(toque, R.string.opt_sidebar, aj.barra) { aj.barra = it }
-        escolha(toque, R.string.opt_sidebar_side, listOf(
-            "esquerda" to getString(R.string.side_left),
-            "direita" to getString(R.string.side_right)), aj.barraLado) { aj.barraLado = it }
-
-        // ---------------- Avançado
-        val av = b.grpAvancado
-        chave(av, R.string.opt_compat, aj.compat) { aj.compat = it }
-        deslizante(av, R.string.opt_jpeg, 30f, 95f, 5f, aj.jpeg.toFloat(),
-            { x -> "${x.toInt()}" }) { aj.jpeg = it.toInt() }
-        chave(av, R.string.opt_autoconnect, aj.autoconectar) { aj.autoconectar = it }
+        val painel = Painel(this, aj, prefs,
+            aoAlterar = { atualizarResumo() },
+            aoRecarregar = { recreate() })
+        val (nw, nh) = Conexao.nativo(this)
+        painel.telaOpcoes(b.grpTela, nw, nh)
+        painel.videoOpcoes(b.grpVideo)
+        painel.toqueOpcoes(b.grpToque)
+        painel.avancadoOpcoes(b.grpAvancado, mostrarAutoconectar = true)
     }
 
-    /** Mexeu numa opção de vídeo: o perfil vira "Personalizado". */
-    private fun personalizado() {
-        if (aj.perfil == "personalizado") return
-        aj.perfil = "personalizado"
-        if (::lblPerfil.isInitialized) lblPerfil.text = getString(R.string.prof_custom)
-    }
-
-    private fun par(v: Int) = v / 2 * 2
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-
-    // ------------------------------------------------ linhas no estilo One UI
-    /** Divisória entre linhas do mesmo cartão (recuada nas laterais). */
-    private fun divisor(pai: LinearLayout) {
-        if (pai.childCount == 0) return
-        pai.addView(View(this).apply {
-            setBackgroundColor(getColor(R.color.divider))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
-                marginStart = dp(20); marginEnd = dp(20)
-            }
-        })
-    }
-
-    private fun texto(t: String, sp: Float, cor: Int) = TextView(this).apply {
-        text = t
-        textSize = sp
-        setTextColor(getColor(cor))
-    }
-
-    private fun linhaBase(pai: LinearLayout, vertical: Boolean): LinearLayout {
-        divisor(pai)
-        val row = LinearLayout(this).apply {
-            orientation = if (vertical) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            minimumHeight = dp(64)
-            setPadding(dp(20), dp(14), dp(20), dp(14))
-            setBackgroundResource(R.drawable.row_bg)
-        }
-        pai.addView(row)
-        return row
-    }
-
-    private fun dica(pai: LinearLayout, res: Int) {
-        pai.addView(texto(getString(res), 13f, R.color.text_muted).apply {
-            setPadding(dp(20), 0, dp(20), dp(12))
-        })
-    }
-
-    /** Linha com o valor atual em azul; tocar abre a lista de opções. */
-    private fun escolha(pai: LinearLayout, titulo: Int, itens: List<Pair<String, String>>,
-                        atual: String, aoMudar: (String) -> Unit): TextView {
-        val row = linhaBase(pai, vertical = true)
-        row.gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START
-        var valor = atual
-        val nome = getString(titulo)
-        row.addView(texto(nome, 17f, R.color.text_primary))
-        val sub = texto(itens.firstOrNull { it.first == atual }?.second ?: "", 14f, R.color.accent)
-            .apply { setPadding(0, dp(2), 0, 0) }
-        row.addView(sub)
-        row.setOnClickListener {
-            val idx = itens.indexOfFirst { it.first == valor }
-            MaterialAlertDialogBuilder(this)
-                .setTitle(nome)
-                .setSingleChoiceItems(itens.map { it.second }.toTypedArray(), idx) { d, i ->
-                    valor = itens[i].first
-                    sub.text = itens[i].second
-                    aoMudar(valor)
-                    aj.salvar(prefs)
-                    d.dismiss()
-                }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
-        }
-        return sub
-    }
-
-    /** Linha com título, valor em azul e controle deslizante embaixo. */
-    private fun deslizante(pai: LinearLayout, titulo: Int, de: Float, ate: Float, passo: Float,
-                           atual: Float, rotulo: (Float) -> String, aoMudar: (Float) -> Unit) {
-        val row = linhaBase(pai, vertical = true)
-        row.background = null
-        // O Slider exige valor alinhado ao passo e dentro da faixa.
-        val inicial = (de + Math.round((atual.coerceIn(de, ate) - de) / passo) * passo)
-            .coerceIn(de, ate)
-        val topo = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        topo.addView(texto(getString(titulo), 17f, R.color.text_primary),
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val valor = texto(rotulo(inicial), 14f, R.color.accent)
-        topo.addView(valor)
-        row.addView(topo, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        row.addView(Slider(this).apply {
-            valueFrom = de; valueTo = ate; stepSize = passo; value = inicial
-            labelBehavior = LabelFormatter.LABEL_GONE
-            addOnChangeListener { _, x, doUsuario ->
-                valor.text = rotulo(x)
-                if (doUsuario) { aoMudar(x); aj.salvar(prefs) }
-            }
-        }, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-    }
-
-    /** FPS: valor livre de 10 a 60, ou Automático (a rede escolhe ao conectar). */
-    private fun controleFps(pai: LinearLayout) {
-        val row = linhaBase(pai, vertical = true)
-        row.background = null
-        val topo = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        topo.addView(texto(getString(R.string.fps), 17f, R.color.text_primary),
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val valor = texto("", 14f, R.color.accent)
-        topo.addView(valor)
-        row.addView(topo, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-
-        var manual = if (aj.fps in 10..60) aj.fps else 60
-        val slider = Slider(this).apply {
-            valueFrom = 10f; valueTo = 60f; stepSize = 1f
-            value = manual.toFloat()
-            labelBehavior = LabelFormatter.LABEL_GONE
-        }
-        val auto = SwitchMaterial(this).apply {
-            text = getString(R.string.fps_auto)
-            setTextColor(getColor(R.color.text_primary))
-            isChecked = aj.fps == 0
-        }
-        fun atualizar() {
-            if (auto.isChecked) {
-                valor.text = getString(R.string.fps_auto_value, fpsAutomatico())
-                slider.isEnabled = false
-            } else {
-                valor.text = "${manual} fps"
-                slider.isEnabled = true
-            }
-        }
-        slider.addOnChangeListener { _, x, doUsuario ->
-            manual = x.toInt()
-            if (doUsuario) {
-                if (!auto.isChecked) aj.fps = manual
-                personalizado(); aj.salvar(prefs)
-            }
-            atualizar()
-        }
-        auto.setOnCheckedChangeListener { _, marcado ->
-            aj.fps = if (marcado) 0 else manual
-            personalizado(); aj.salvar(prefs)
-            atualizar()
-        }
-        row.addView(auto)
-        row.addView(slider, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        atualizar()
-    }
-
-    /** Automático: 60 fps quando a rede é rápida (5/6 GHz ou link alto); senão 30. */
-    private fun fpsAutomatico(): Int {
-        val st = try { NetInfo.read(this) } catch (_: Exception) { return 30 }
-        return if (st.band == "5 GHz" || st.band == "6 GHz" || st.linkMbps >= 200) 60 else 30
-    }
-
-    /** Linha com interruptor à direita; tocar em qualquer lugar liga/desliga. */
-    private fun chave(pai: LinearLayout, titulo: Int, atual: Boolean, aoMudar: (Boolean) -> Unit) {
-        val row = linhaBase(pai, vertical = false)
-        row.addView(texto(getString(titulo), 17f, R.color.text_primary),
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val sw = SwitchMaterial(this).apply {
-            isChecked = atual
-            setOnCheckedChangeListener { _, v -> aoMudar(v); aj.salvar(prefs) }
-        }
-        row.addView(sw)
-        row.setOnClickListener { sw.toggle() }
-    }
-
-    // ====================================================== tamanho da tela
-    private fun tamanhoNativo(): Pair<Int, Int> {
-        return if (Build.VERSION.SDK_INT >= 30) {
-            val r = windowManager.maximumWindowMetrics.bounds
-            r.width() to r.height()
-        } else {
-            val m = DisplayMetrics()
-            @Suppress("DEPRECATION")
-            windowManager.defaultDisplay.getRealMetrics(m)
-            m.widthPixels to m.heightPixels
-        }
+    private fun atualizarResumo() {
+        b.lblResumo.text = aj.resumo()
     }
 
     // ============================================================ descoberta
@@ -346,6 +84,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         b.rowSearching.visibility = View.VISIBLE
         discovery = NsdDiscovery(this).also { it.listener = this; it.start() }
         verificarUsb()
+        verificarAtualizacao()
         b.lblNet.text = try { NetInfo.describe(NetInfo.read(this)) } catch (_: Exception) {
             getString(R.string.tagline)
         }
@@ -380,34 +119,141 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         if (!seen.add(key)) return
         b.rowSearching.visibility = View.GONE
         val lista = b.listPcs
-        divisor(lista)
+        Linhas.divisor(this, lista)
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            minimumHeight = dp(72)
-            setPadding(dp(20), dp(12), dp(20), dp(12))
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = Linhas.dp(this@ConnectActivity, 72)
+            val h = Linhas.dp(this@ConnectActivity, 20)
+            val v = Linhas.dp(this@ConnectActivity, 12)
+            setPadding(h, v, h, v)
             setBackgroundResource(R.drawable.row_bg)
         }
         row.addView(ImageView(this).apply {
             setImageResource(R.drawable.ic_monitor)
             setBackgroundResource(R.drawable.icon_circle)
-            setPadding(dp(10), dp(10), dp(10), dp(10))
-        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+            val p = Linhas.dp(this@ConnectActivity, 10)
+            setPadding(p, p, p, p)
+        }, LinearLayout.LayoutParams(Linhas.dp(this, 44), Linhas.dp(this, 44)))
         val textos = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), 0, 0, 0)
+            setPadding(Linhas.dp(this@ConnectActivity, 16), 0, 0, 0)
         }
-        textos.addView(texto(device.name, 17f, R.color.text_primary))
-        textos.addView(texto(getString(R.string.pc_ready, device.host), 14f, R.color.text_muted))
+        textos.addView(Linhas.texto(this, device.name, 17f, R.color.text_primary))
+        textos.addView(Linhas.texto(this, getString(R.string.pc_ready, device.host), 14f,
+            R.color.text_muted))
         row.addView(textos, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         row.addView(ImageView(this).apply { setImageResource(R.drawable.ic_chevron) },
-            LinearLayout.LayoutParams(dp(24), dp(24)))
+            LinearLayout.LayoutParams(Linhas.dp(this, 24), Linhas.dp(this, 24)))
         row.setOnClickListener {
             b.editHost.setText(device.host)
             if (device.port in 1..65535) b.editPort.setText(device.port.toString())
             conectar(device.host)
         }
         lista.addView(row)
+    }
+
+    // ========================================================= teste de rede
+    /** Mede o atraso até o PC e sugere o perfil que combina com a rede. */
+    private fun testarRede() {
+        val host = b.editHost.text.toString().trim().ifEmpty { aj.ultimoHost }
+        if (host.isEmpty()) {
+            Toast.makeText(this, getString(R.string.err_host), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val porta = portaDigitada()
+        b.btnTestar.isEnabled = false
+        thread(isDaemon = true) {
+            val tempos = ArrayList<Long>()
+            repeat(5) {
+                val t0 = System.nanoTime()
+                try {
+                    val c = URL("http://$host:$porta/status").openConnection() as HttpURLConnection
+                    c.connectTimeout = 2000; c.readTimeout = 2000
+                    if (c.responseCode == 200) tempos.add((System.nanoTime() - t0) / 1_000_000)
+                    c.disconnect()
+                } catch (_: Exception) {}
+            }
+            val rtt = tempos.sorted().getOrNull(tempos.size / 2)
+            val banda = try { NetInfo.read(this).band } catch (_: Exception) { "—" }
+            val usb = host == "127.0.0.1"
+            val sugerido = when {
+                rtt == null -> null
+                usb -> "desenho"
+                rtt <= 5 && (banda == "5 GHz" || banda == "6 GHz") -> "desenho"
+                rtt <= 15 -> "trabalho"
+                else -> "economia"
+            }
+            runOnUiThread {
+                b.btnTestar.isEnabled = true
+                if (rtt == null || sugerido == null) {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.test_net_title)
+                        .setMessage(getString(R.string.test_net_fail, host, porta))
+                        .setPositiveButton(R.string.ok, null)
+                        .show()
+                    return@runOnUiThread
+                }
+                val rede = if (usb) getString(R.string.test_net_usb) else "$banda · $rtt ms"
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.test_net_title)
+                    .setMessage(getString(R.string.test_net_result, rede, nomePerfil(sugerido)))
+                    .setPositiveButton(R.string.test_apply) { _, _ ->
+                        aj.aplicarPerfil(sugerido)
+                        aj.salvar(prefs)
+                        recreate()
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            }
+        }
+    }
+
+    private fun nomePerfil(p: String) = getString(when (p) {
+        "desenho" -> R.string.prof_draw
+        "trabalho" -> R.string.prof_work
+        "video" -> R.string.prof_video
+        "economia" -> R.string.prof_eco
+        else -> R.string.prof_custom
+    })
+
+    // ========================================================== atualização
+    /** Procura uma versão mais nova do app nas releases do GitHub. */
+    private fun verificarAtualizacao() {
+        thread(isDaemon = true) {
+            val nova = try {
+                val c = URL("https://api.github.com/repos/parceiros-beep/segunda-tela/releases?per_page=10")
+                    .openConnection() as HttpURLConnection
+                c.connectTimeout = 3000; c.readTimeout = 3000
+                c.setRequestProperty("Accept", "application/vnd.github+json")
+                val arr = JSONArray(c.inputStream.bufferedReader().readText())
+                c.disconnect()
+                var melhor: String? = null
+                for (i in 0 until arr.length()) {
+                    val tag = arr.getJSONObject(i).optString("tag_name")
+                    if (!Regex("v\\d+(\\.\\d+)+").matches(tag)) continue
+                    if (melhor == null || comparar(tag.substring(1), melhor.substring(1)) > 0) melhor = tag
+                }
+                melhor?.substring(1)?.takeIf { comparar(it, versaoInstalada()) > 0 }
+            } catch (_: Exception) { null }
+            if (nova != null) runOnUiThread {
+                b.lblAtualizar.text = getString(R.string.update_available, nova)
+                b.lblAtualizar.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun versaoInstalada(): String =
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "0"
+
+    private fun comparar(va: String, vb: String): Int {
+        val x = va.split(".").map { it.toIntOrNull() ?: 0 }
+        val y = vb.split(".").map { it.toIntOrNull() ?: 0 }
+        for (i in 0 until maxOf(x.size, y.size)) {
+            val d = x.getOrElse(i) { 0 } - y.getOrElse(i) { 0 }
+            if (d != 0) return d
+        }
+        return 0
     }
 
     // ============================================================== conectar
@@ -422,48 +268,12 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         if (host != "127.0.0.1") aj.ultimoHost = host
         aj.salvar(prefs)
 
-        // Orientação da sessão e tamanho do monitor = tela do tablet.
-        val (nw, nh) = tamanhoNativo()
-        val maior = maxOf(nw, nh); val menor = minOf(nw, nh)
-        val horizontal = when (aj.orientacao) {
-            "horizontal" -> true
-            "vertical" -> false
-            else -> resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT
-        }
-        val w = par((if (horizontal) maior else menor) * aj.resolucao / 100)
-        val h = par((if (horizontal) menor else maior) * aj.resolucao / 100)
-        val escala = if (aj.escala > 0) aj.escala else Ajustes.escalaAuto(maxOf(w, h))
-
-        // Automático: cabo USB sempre 60; Wi‑Fi conforme a banda e a velocidade.
-        val fps = if (aj.fps > 0) aj.fps
-            else if (host == "127.0.0.1") 60 else fpsAutomatico()
-
-        val mbps = if (aj.mbps > 0) aj.mbps else {
-            // ~0,1 bit por pixel; limitado pela velocidade do Wi-Fi.
-            val bpp = if (aj.codec == "h265") 14_000_000L else 10_000_000L
-            val ideal = (w.toLong() * h * fps / bpp).toInt().coerceIn(6, 60)
-            if (host == "127.0.0.1") ideal else {
-                val link = try { NetInfo.read(this).linkMbps } catch (_: Exception) { 0 }
-                if (link > 0) minOf(ideal, maxOf(6, link * 2 / 5)) else ideal
-            }
-        }
-
-        val path = StringBuilder()
-        if (aj.compat) {
-            path.append("/stream?fps=${minOf(fps, 30)}&quality=${aj.jpeg}")
-        } else {
-            path.append("/video?fps=$fps&kbps=${mbps * 1000}&codec=${aj.codec}")
-            path.append("&taxa=${aj.taxa}&cq=${aj.cq}&vel=${aj.velocidade}")
-            path.append("&gop=${aj.gop}&intra=${if (aj.intra) 1 else 0}")
-        }
-        path.append("&cursor=${if (aj.cursor) 1 else 0}")
-        path.append("&w=$w&h=$h&modo=${aj.modo}&lado=${aj.lado}&escala=$escala")
-        if (aj.pin.isNotEmpty()) path.append("&pin=${aj.pin}")
-
+        val horizontal = Conexao.horizontal(this, aj)
+        val p = Conexao.parametros(this, aj, host, horizontal)
         val abrir = Intent(this, ViewerActivity::class.java)
             .putExtra("host", host)
             .putExtra("port", aj.porta)
-            .putExtra("path", path.toString())
+            .putExtra("path", Conexao.caminho(aj, p, aj.pin))
             .putExtra("compat", aj.compat)
             .putExtra("orient", if (horizontal) "h" else "v")
         testarEAbrir(host, aj.porta, abrir)

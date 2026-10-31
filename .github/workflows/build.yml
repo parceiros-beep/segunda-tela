@@ -25,6 +25,9 @@ jobs:
           validate-wrappers: false
       - name: Build release APK
         run: cd android && gradle assembleRelease --no-daemon --stacktrace
+      - name: Versão do app
+        run: echo "APP_VER=$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle)" >> "$GITHUB_ENV"
+
       - name: Rename APK
         run: cp android/app/build/outputs/apk/release/app-release.apk segunda-tela.apk
       - uses: actions/upload-artifact@v4
@@ -35,8 +38,8 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.0
-          name: Segunda Tela 3.0 - App Android
+          tag_name: v${{ env.APP_VER }}
+          name: Segunda Tela ${{ env.APP_VER }} - App Android
           body: |
             Instale **segunda-tela.apk** no tablet. No PC, use o instalador da release servidor-v3.0.
           files: segunda-tela.apk

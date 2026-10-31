@@ -195,7 +195,31 @@
             android:text="@string/opt_stats"
             android:textColor="@color/text_primary" />
 
+                <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAjustes"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:text="@string/ajustes_vivo"
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            app:cornerRadius="26dp"
+            app:strokeColor="@color/stroke" />
+
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDiag"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:text="@string/diag_copy"
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            app:cornerRadius="26dp"
+            app:strokeColor="@color/stroke" />
+
+<com.google.android.material.button.MaterialButton
             android:id="@+id/btnKeyboard"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"

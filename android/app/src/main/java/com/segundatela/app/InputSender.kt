@@ -94,6 +94,12 @@ class InputSender(
     fun scroll(x: Float, y: Float, dy: Int) = enfileira("s ${f(x)} ${f(y)} $dy")
     fun key(code: String) = enfileira("k $code")
     fun text(t: String) = enfileira("t " + t.replace("\n", "\\n"))
+    // Touchpad: movimento relativo e cliques no ponto atual do cursor
+    fun relMove(dx: Float, dy: Float) =
+        enfileira(String.format(java.util.Locale.US, "rm %.5f %.5f", dx, dy))
+    fun clickHere(right: Boolean) = enfileira(if (right) "cr" else "cl")
+    fun wheelHere(ticks: Int) = enfileira("sw $ticks")
+
     fun keyDown(vk: Int) = enfileira("kd $vk")
     fun keyUp(vk: Int) = enfileira("ku $vk")
 

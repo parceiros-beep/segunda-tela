@@ -1,7 +1,10 @@
 package com.segundatela.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -15,11 +18,13 @@ import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipDrawable
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.segundatela.app.databinding.ActivityViewerBinding
 import kotlin.math.abs
 import kotlin.math.cos
@@ -36,6 +41,9 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
     private var input: InputSender? = null
     private lateinit var tela: Tela
     private var info = ""
+    private var host = ""
+    private var port = 8080
+    private var pathAtual = ""
 
     // Caneta
     private var canetaPerto = false
@@ -62,6 +70,14 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         }
     }
 
+    // Touchpad: o dedo move o cursor pelo deslocamento
+    private var tpX = 0f; private var tpY = 0f
+    private var tpInicioX = 0f; private var tpInicioY = 0f
+    private var tpDedos = 0
+    private var tpMovido = false
+    private var tpInicio = 0L
+    private var tpAvgY = 0f
+
     // Estatísticas
     @Volatile private var rttMs = -1L
     private val pinger = object : Runnable {
@@ -86,13 +102,14 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         setContentView(b.root)
         aj = Ajustes.carregar(prefs)
 
-        val host = intent.getStringExtra("host") ?: run { finish(); return }
-        val port = intent.getIntExtra("port", 8080)
-        val path = intent.getStringExtra("path") ?: run { finish(); return }
-        requestedOrientation = when (intent.getStringExtra("orient")) {
-            "h" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            "v" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            else -> ActivityInfo.SCREEN_ORIENTATION_LOCKED
+        host = intent.getStringExtra("host") ?: run { finish(); return }
+        port = intent.getIntExtra("port", 8080)
+        pathAtual = intent.getStringExtra("path") ?: run { finish(); return }
+        // "Automático" deixa o tablet girar livremente; a transmissão acompanha.
+        requestedOrientation = when (aj.orientacao) {
+            "horizontal" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            "vertical" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            else -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
         }
 
         input = InputSender(host, port, aj.pin).also { it.start() }
@@ -102,12 +119,12 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
             b.h264.visibility = View.GONE
             b.mjpeg.visibility = View.VISIBLE
             b.mjpeg.listener = this
-            b.mjpeg.start("http://$host:$port$path")
+            b.mjpeg.start("http://$host:$port$pathAtual")
             tela = b.mjpeg; view = b.mjpeg
         } else {
             b.h264.listener = this
             b.h264.ultimoQuadro = aj.ultimoQuadro
-            b.h264.start(host, port, path)
+            b.h264.start(host, port, pathAtual)
             tela = b.h264; view = b.h264
         }
         view.setOnTouchListener { _, e -> onTouch(e); true }
@@ -127,9 +144,13 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         b.scrim.setOnClickListener { abrirMenu(false) }
         b.btnDisconnect.setOnClickListener { finish() }
         b.btnKeyboard.setOnClickListener { abrirMenu(false); abrirTeclado() }
+        b.btnAjustes.setOnClickListener { abrirAjustesVivo() }
+        b.btnDiag.setOnClickListener { copiarDiagnostico() }
 
-        val opcoes = listOf("nativo" to R.string.touch_native,
-            "mouse" to R.string.touch_mouse, "desligado" to R.string.touch_off)
+        val opcoes = listOf(
+            "nativo" to R.string.touch_native, "mouse" to R.string.touch_mouse,
+            "touchpad" to R.string.touch_touchpad, "mesa" to R.string.touch_mesa,
+            "desligado" to R.string.touch_off)
         for ((valor, rotulo) in opcoes) {
             b.grpToque.addView(Chip(this).apply {
                 setChipDrawable(ChipDrawable.createFromAttributes(context, null, 0,
@@ -195,6 +216,83 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
             @Suppress("DEPRECATION")
             super.onBackPressed()
         }
+    }
+
+    // ============================================================ ajustes ao vivo
+    /** Ajustes de vídeo com a transmissão rodando. Ao fechar, reinicia se preciso. */
+    private fun abrirAjustesVivo() {
+        abrirMenu(false)
+        val antes = aj.copy()
+        val conteudo = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val p = Linhas.dp(this@ViewerActivity, 8)
+            setPadding(p, 0, p, p)
+        }
+        val rolagem = ScrollView(this).apply { addView(conteudo) }
+        fun montar() {
+            conteudo.removeAllViews()
+            conteudo.addView(Linhas.texto(this, getString(R.string.live_hint), 13f, R.color.text_muted).apply {
+                setPadding(Linhas.dp(this@ViewerActivity, 16), Linhas.dp(this@ViewerActivity, 8),
+                    Linhas.dp(this@ViewerActivity, 16), Linhas.dp(this@ViewerActivity, 8))
+            })
+            Painel(this, aj, prefs, aoAlterar = { aplicarInstantaneos() }, aoRecarregar = { montar() })
+                .videoOpcoes(conteudo)
+        }
+        montar()
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.live_title)
+            .setView(rolagem)
+            .setPositiveButton(R.string.ok, null)
+            .setOnDismissListener {
+                if (!antes.mesmoVideo(aj)) reiniciarTransmissao()
+            }
+            .show()
+    }
+
+    /** Opções que não precisam reiniciar a transmissão: aplicam na hora. */
+    private fun aplicarInstantaneos() {
+        b.h264.ultimoQuadro = aj.ultimoQuadro
+        mostrarEstatisticas(aj.estatisticas)
+    }
+
+    private fun caminhoAtual(): String = Conexao.caminho(aj,
+        Conexao.parametros(this, aj, host, Conexao.horizontal(this, aj)), aj.pin)
+
+    /** Reinicia a transmissão com os ajustes atuais (sem fechar a tela). */
+    private fun reiniciarTransmissao() {
+        if (aj.compat) {
+            Toast.makeText(this, R.string.live_compat, Toast.LENGTH_LONG).show()
+            return
+        }
+        val novo = caminhoAtual()
+        if (novo == pathAtual) return
+        pathAtual = novo
+        mostrarStatus(getString(R.string.applying), false)
+        b.h264.reiniciar(novo)
+    }
+
+    /** Girou o tablet com "Automático": a transmissão acompanha o novo tamanho. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (!aj.compat && aj.orientacao == "auto") reiniciarTransmissao()
+    }
+
+    // ========================================================= diagnóstico
+    private fun copiarDiagnostico() {
+        val m = resources.displayMetrics
+        val texto = buildString {
+            appendLine("Segunda Tela (tablet)")
+            appendLine("Conexão: $host:$port")
+            appendLine(info)
+            appendLine(b.lblStats.text)
+            appendLine("Ajustes: ${aj.resumo()}")
+            appendLine("Perfil: ${aj.perfil} · taxa ${aj.taxa} · velocidade ${aj.velocidade}")
+            appendLine("Toque: ${aj.toque} · caneta ${aj.caneta} · palma ${aj.palma}")
+            appendLine("Tela do tablet: ${m.widthPixels}x${m.heightPixels}")
+        }
+        getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(ClipData.newPlainText("diagnostico", texto))
+        Toast.makeText(this, R.string.diag_copied, Toast.LENGTH_SHORT).show()
     }
 
     // ========================================================= estatísticas
@@ -319,12 +417,15 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
 
     private fun onTouch(e: MotionEvent) {
         if (menuAberto()) return
-        if (aj.caneta && ehCaneta(e)) { onCaneta(e); return }
+        // Mesa digitalizadora: só a caneta age, sempre.
+        if (ehCaneta(e) && (aj.caneta || aj.toque == "mesa")) { onCaneta(e); return }
+        if (aj.toque == "mesa" || aj.toque == "desligado") return
         // Rejeição da palma: com a caneta perto da tela, ignora a mão.
         if (canetaPerto || canetaEmContato || (aj.palma && aj.caneta)) return
         when (aj.toque) {
             "nativo" -> toqueNativo(e)
             "mouse" -> toqueMouse(e)
+            "touchpad" -> toqueTouchpad(e)
         }
     }
 
@@ -386,7 +487,7 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
     }
 
     private fun onHover(e: MotionEvent): Boolean {
-        if (!aj.caneta || !ehCaneta(e)) return false
+        if (!(aj.caneta || aj.toque == "mesa") || !ehCaneta(e)) return false
         when (e.actionMasked) {
             MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
                 canetaPerto = true
@@ -486,6 +587,55 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
                     }
                 }
                 multi = false; dragging = false; moved = false
+            }
+        }
+    }
+
+    // -------- touchpad: o cursor anda pelo deslocamento do dedo, como um trackpad
+    /** Sensibilidade: deslizar a largura da tela do tablet anda 1,4× a largura do PC. */
+    private val sensibilidadeTouchpad = 1.4f
+
+    private fun toqueTouchpad(e: MotionEvent) {
+        val area = tela as View
+        val vw = area.width.coerceAtLeast(1).toFloat()
+        val vh = area.height.coerceAtLeast(1).toFloat()
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                tpX = e.x; tpY = e.y; tpInicioX = e.x; tpInicioY = e.y
+                tpDedos = 1; tpMovido = false; tpInicio = System.currentTimeMillis()
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                tpDedos = maxOf(tpDedos, e.pointerCount)
+                tpAvgY = avgY(e)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (e.pointerCount >= 2) {
+                    // Dois dedos arrastando = rolagem
+                    val ay = avgY(e)
+                    val dy = ay - tpAvgY
+                    if (abs(dy) > slop) {
+                        val ticks = (dy / slop).toInt()
+                        if (ticks != 0) {
+                            input?.wheelHere(ticks)
+                            tpAvgY = ay; tpMovido = true
+                        }
+                    }
+                } else {
+                    val dx = e.x - tpX; val dy = e.y - tpY
+                    if (dx != 0f || dy != 0f) {
+                        input?.relMove(dx / vw * sensibilidadeTouchpad, dy / vh * sensibilidadeTouchpad)
+                        tpX = e.x; tpY = e.y
+                    }
+                    if (!tpMovido && (abs(e.x - tpInicioX) > slop || abs(e.y - tpInicioY) > slop)) {
+                        tpMovido = true
+                    }
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // Toque rápido sem arrastar = clique (dois dedos = botão direito)
+                val rapido = System.currentTimeMillis() - tpInicio < 250
+                if (!tpMovido && rapido) input?.clickHere(right = tpDedos >= 2)
+                tpDedos = 0
             }
         }
     }

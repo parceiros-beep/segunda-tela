@@ -108,6 +108,24 @@ if _WIN:
         _send(_mi(0, 0, MOUSEEVENTF_RIGHTDOWN))
         _send(_mi(0, 0, MOUSEEVENTF_RIGHTUP))
 
+    def move_rel(dx, dy):
+        """Move o cursor a partir da posição atual (touchpad), em pixels."""
+        dx = int(round(dx)); dy = int(round(dy))
+        if dx or dy:
+            _send(_mi(dx, dy, MOUSEEVENTF_MOVE))
+
+    def clique_aqui(direito):
+        """Clique na posição atual do cursor, sem mover."""
+        if direito:
+            _send(_mi(0, 0, MOUSEEVENTF_RIGHTDOWN))
+            _send(_mi(0, 0, MOUSEEVENTF_RIGHTUP))
+        else:
+            _send(_mi(0, 0, MOUSEEVENTF_LEFTDOWN))
+            _send(_mi(0, 0, MOUSEEVENTF_LEFTUP))
+
+    def wheel_aqui(ticks):
+        _send(_mi(0, 0, MOUSEEVENTF_WHEEL, data=ticks * 120 & 0xFFFFFFFF))
+
     def wheel(px, py, ticks):
         move(px, py)
         _send(_mi(0, 0, MOUSEEVENTF_WHEEL, data=ticks * 120 & 0xFFFFFFFF))
@@ -421,6 +439,9 @@ else:
     def left_up(px, py): pass
     def right_click(px, py): pass
     def wheel(px, py, ticks): pass
+    def move_rel(dx, dy): pass
+    def clique_aqui(direito): pass
+    def wheel_aqui(ticks): pass
     def key(code): pass
     def text(s): pass
     def key_down(vk): pass

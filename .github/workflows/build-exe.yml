@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Instalar dependências
-        run: pip install mss pillow zeroconf pyinstaller
+        run: pip install mss pillow zeroconf pystray pyinstaller
 
       - name: Baixar componentes (ffmpeg, monitor virtual, nefcon, adb)
         shell: pwsh
@@ -64,7 +64,7 @@ jobs:
       - name: Gerar executável
         run: >
           pyinstaller --onedir --console --noconfirm --name SegundaTela-Servidor
-          --collect-submodules zeroconf
+          --collect-submodules zeroconf --collect-submodules pystray
           --add-binary "extras/ffmpeg.exe;."
           --add-data "extras/drivers;drivers"
           --add-data "extras/adb;adb"

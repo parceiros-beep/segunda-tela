@@ -378,6 +378,9 @@ def aplicar_evento(linha):
       T d|m|u id x y       toque nativo; TM id x y id x y ... (vários dedos)
       TR                   solta todos os toques
       P est x y pressão tiltX tiltY botões    caneta
+      rm dx dy             touchpad: move a partir da posição atual
+      cl / cr              clique esquerdo / direito no cursor atual
+      sw n                 rolagem no cursor atual
     """
     p = linha.split(" ")
     cmd = p[0]
@@ -420,6 +423,14 @@ def aplicar_evento(linha):
             win_input.touch_move_varios(pts)
         elif cmd == "TR":
             win_input.touch_reset()
+        elif cmd == "rm":  # touchpad: deslocamento normalizado da tela do tablet
+            win_input.move_rel(float(p[1]) * w, float(p[2]) * h)
+        elif cmd == "cl":
+            win_input.clique_aqui(False)
+        elif cmd == "cr":
+            win_input.clique_aqui(True)
+        elif cmd == "sw":
+            win_input.wheel_aqui(int(p[1]))
         elif cmd == "P":
             win_input.pen(p[1], px(p[2]), py(p[3]), float(p[4]),
                           float(p[5]), float(p[6]), int(p[7]))
@@ -501,6 +512,41 @@ def anunciar_mdns(porta):
     except Exception as e:  # sem mDNS o IP manual continua funcionando
         print("Aviso: descoberta automática indisponível (%s)" % e)
         return None, None
+
+
+def rodar_bandeja(ao_sair):
+    """Ícone na bandeja: status, desligar a tela estendida e sair.
+    Devolve False se a bandeja não estiver disponível (aí o console continua)."""
+    try:
+        import pystray
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return False
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((4, 10, 60, 46), radius=8, fill=(3, 129, 254, 255))
+    d.rectangle((26, 46, 38, 54), fill=(3, 129, 254, 255))
+    d.rectangle((18, 54, 46, 58), fill=(3, 129, 254, 255))
+
+    def estado(_icon, _item):
+        with Controle.lock:
+            em_uso = Controle.sessao is not None
+        return "Tablet conectado" if em_uso else "Aguardando o tablet"
+
+    def desligar(_icon, _item):
+        tela_virtual.desativar()
+
+    def sair(icon, _item):
+        ao_sair()
+        icon.stop()
+
+    menu = pystray.Menu(
+        pystray.MenuItem("Segunda Tela " + VERSAO, None, enabled=False),
+        pystray.MenuItem(estado, None, enabled=False),
+        pystray.MenuItem("Desligar tela estendida", desligar),
+        pystray.MenuItem("Sair", sair))
+    pystray.Icon("segundatela", img, "Segunda Tela", menu).run()
+    return True
 
 
 def iniciar_com_windows(ligar):
@@ -606,8 +652,10 @@ def main():
     threading.Thread(target=vigiar_usb, args=(a.porta,), daemon=True).start()
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
-        while True:
-            time.sleep(1)
+        # Ícone na bandeja do Windows (bloqueia até "Sair"). Sem pystray, fica no console.
+        if not (_WIN and rodar_bandeja(limpar)):
+            while True:
+                time.sleep(1)
     except KeyboardInterrupt:
         pass
     finally:

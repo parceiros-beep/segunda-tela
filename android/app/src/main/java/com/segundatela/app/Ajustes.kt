@@ -87,6 +87,22 @@ data class Ajustes(
         }
     }
 
+    /** Resumo curto mostrado na tela inicial e no diagnóstico. */
+    fun resumo(): String {
+        val tela = if (modo == "estender") "Estender" else "Espelhar"
+        val cod = if (codec == "h265") "H.265" else "H.264"
+        val quadros = if (fps == 0) "fps automático" else "$fps fps"
+        val taxaTxt = when (taxa) { "vbr" -> "VBR"; "cq" -> "qualidade $cq"; else -> "CBR" }
+        val bitrate = if (mbps == 0) "bitrate automático" else "$mbps Mbps $taxaTxt"
+        return "$tela · $cod · $quadros · $bitrate · $resolucao%"
+    }
+
+    /** Mudou alguma opção que exige reiniciar a transmissão? */
+    fun mesmoVideo(o: Ajustes): Boolean =
+        fps == o.fps && mbps == o.mbps && codec == o.codec && taxa == o.taxa &&
+            cq == o.cq && velocidade == o.velocidade && gop == o.gop && intra == o.intra &&
+            cursor == o.cursor && compat == o.compat && jpeg == o.jpeg
+
     companion object {
         fun carregar(p: SharedPreferences) = Ajustes(
             modo = p.getString("modo", "estender")!!,
