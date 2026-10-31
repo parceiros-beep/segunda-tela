@@ -16,6 +16,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipDrawable
 import com.google.android.material.chip.ChipGroup
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.segundatela.app.databinding.ActivityConnectBinding
 import java.net.HttpURLConnection
@@ -48,12 +49,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
                 conectar(b.editHost.text.toString().trim()); true
             } else false
         }
-        b.btnUsb.setOnClickListener {
-            if (!usbOk) {
-                Toast.makeText(this, getString(R.string.usb_help), Toast.LENGTH_LONG).show()
-            }
-            conectar("127.0.0.1")
-        }
+        b.btnUsb.setOnClickListener { conectar("127.0.0.1") }
 
         if (aj.autoconectar && aj.ultimoHost.isNotBlank()) {
             b.root.post { conectar(aj.ultimoHost) }
@@ -185,7 +181,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
 
     /** Servidor alcançável por 127.0.0.1 = tablet no cabo com adb reverse. */
     private fun verificarUsb() {
-        val porta = b.editPort.text.toString().toIntOrNull() ?: 8080
+        val porta = portaDigitada()
         thread(isDaemon = true) {
             val ok = try {
                 val c = URL("http://127.0.0.1:$porta/status").openConnection() as HttpURLConnection
@@ -216,7 +212,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
             minHeight = (60 * d).toInt()
             setOnClickListener {
                 b.editHost.setText(device.host)
-                b.editPort.setText(device.port.toString())
+                if (device.port in 1..65535) b.editPort.setText(device.port.toString())
                 conectar(device.host)
             }
         }
@@ -229,7 +225,8 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
             Toast.makeText(this, getString(R.string.err_host), Toast.LENGTH_SHORT).show()
             return
         }
-        aj.porta = b.editPort.text.toString().trim().toIntOrNull() ?: 8080
+        aj.porta = portaDigitada()
+        b.editPort.setText(aj.porta.toString())
         aj.pin = b.editPin.text.toString().trim()
         if (host != "127.0.0.1") aj.ultimoHost = host
         aj.salvar(prefs)
@@ -264,11 +261,49 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         path.append("&w=$w&h=$h&modo=${aj.modo}&lado=${aj.lado}&escala=$escala")
         if (aj.pin.isNotEmpty()) path.append("&pin=${aj.pin}")
 
-        startActivity(Intent(this, ViewerActivity::class.java)
+        val abrir = Intent(this, ViewerActivity::class.java)
             .putExtra("host", host)
             .putExtra("port", aj.porta)
             .putExtra("path", path.toString())
             .putExtra("compat", aj.compat)
-            .putExtra("orient", if (horizontal) "h" else "v"))
+            .putExtra("orient", if (horizontal) "h" else "v")
+        testarEAbrir(host, aj.porta, abrir)
+    }
+
+    private fun portaDigitada(): Int {
+        val p = b.editPort.text.toString().trim().toIntOrNull() ?: 8080
+        return if (p in 1..65535) p else 8080
+    }
+
+    /** Confere se o servidor responde antes de abrir a tela; explica se não. */
+    private fun testarEAbrir(host: String, porta: Int, abrir: Intent) {
+        b.btnConnect.isEnabled = false
+        b.btnConnect.text = getString(R.string.checking)
+        thread(isDaemon = true) {
+            val erro: String? = try {
+                val c = URL("http://$host:$porta/status").openConnection() as HttpURLConnection
+                c.connectTimeout = 2500; c.readTimeout = 2500
+                val code = c.responseCode
+                c.disconnect()
+                if (code == 200) null else "HTTP $code"
+            } catch (e: Exception) { e.javaClass.simpleName + ": " + (e.message ?: "") }
+            runOnUiThread {
+                b.btnConnect.isEnabled = true
+                b.btnConnect.text = getString(R.string.connect)
+                if (erro == null) {
+                    startActivity(abrir)
+                    return@runOnUiThread
+                }
+                val usb = host == "127.0.0.1"
+                val msg = if (usb) getString(R.string.err_usb, porta)
+                          else getString(R.string.err_wifi, host, porta)
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.err_title)
+                    .setMessage(msg)
+                    .setPositiveButton(R.string.ok, null)
+                    .setNeutralButton(R.string.try_anyway) { _, _ -> startActivity(abrir) }
+                    .show()
+            }
+        }
     }
 }

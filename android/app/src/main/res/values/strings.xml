@@ -13,6 +13,12 @@
     <string name="btn_usb_ready">✓ Cabo USB detectado: conectar</string>
     <string name="usb_help">Cabo USB: ative a Depuração USB no tablet (Opções do desenvolvedor), plugue no PC com o Segunda Tela aberto e aceite o aviso no tablet.</string>
     <string name="err_host">Informe o IP do computador</string>
+    <string name="checking">Conectando…</string>
+    <string name="err_title">Não consegui falar com o PC</string>
+    <string name="err_wifi">O computador %1$s não respondeu na porta %2$d.\n\n• Abra o Segunda Tela no PC (a janela preta precisa ficar aberta).\n• PC e tablet precisam estar na mesma rede Wi‑Fi (sem rede de convidados).\n• Confira o IP mostrado na janela do servidor.\n• Se o Windows perguntou sobre o Firewall, clique em Permitir (redes privadas e públicas).</string>
+    <string name="err_usb">Pelo cabo, o PC não respondeu (porta %1$d).\n\n• Ative no tablet: Configurações › Opções do desenvolvedor › Depuração USB.\n• Plugue o cabo com o Segunda Tela aberto no PC e aceite o aviso "Permitir depuração USB" no tablet.\n• Em alguns segundos a janela do servidor mostra "[usb] Tablet ... no cabo".\n\nSem cabo? Use o Wi‑Fi: toque no computador encontrado ou digite o IP.</string>
+    <string name="ok">OK</string>
+    <string name="try_anyway">Tentar mesmo assim</string>
 
     <!-- Seções -->
     <string name="sec_display">Tela</string>

@@ -98,7 +98,7 @@ class H264View @JvmOverloads constructor(
                 val s = Socket().apply {
                     tcpNoDelay = true
                     receiveBufferSize = 1 shl 20
-                    connect(InetSocketAddress(host, port), 4000)
+                    connect(InetSocketAddress(this@H264View.host, this@H264View.port), 4000)
                     soTimeout = 0
                 }
                 socket = s
@@ -129,7 +129,14 @@ class H264View @JvmOverloads constructor(
             } catch (e: Exception) {
                 if (!running) break
                 liberarCodec()
-                post { listener?.onDisconnected(e.message ?: "erro de conexão") }
+                val motivo = when {
+                    e is java.net.ConnectException || e.message?.contains("ECONNREFUSED") == true ->
+                        "o PC não respondeu em $host:$port — o Segunda Tela está aberto no PC?"
+                    e is java.net.SocketTimeoutException ->
+                        "sem resposta de $host:$port — mesma rede Wi‑Fi? Firewall liberado?"
+                    else -> e.message ?: "erro de conexão"
+                }
+                post { listener?.onDisconnected(motivo) }
                 try { Thread.sleep(backoff) } catch (_: InterruptedException) { break }
                 backoff = (backoff * 2).coerceAtMost(4000L)
             } finally {

@@ -50,7 +50,7 @@ class InputSender(
         try {
             val s = Socket().apply {
                 tcpNoDelay = true
-                connect(InetSocketAddress(host, port), 4000)
+                connect(InetSocketAddress(this@InputSender.host, this@InputSender.port), 4000)
             }
             val o = s.getOutputStream()
             val req = "POST /input HTTP/1.1\r\nHost: $host\r\n" +

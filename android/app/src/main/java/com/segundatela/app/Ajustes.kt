@@ -49,7 +49,7 @@ data class Ajustes(
             barra = p.getBoolean("barra", true),
             orientacao = p.getString("orientacao", "auto")!!,
             compat = p.getBoolean("compat", false),
-            porta = p.getInt("porta3", 8080),
+            porta = p.getInt("porta3", 8080).let { if (it in 1..65535) it else 8080 },
             pin = p.getString("pin", "")!!,
             autoconectar = p.getBoolean("autoconectar", false),
             ultimoHost = p.getString("host", "")!!
