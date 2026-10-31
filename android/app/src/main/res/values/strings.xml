@@ -120,4 +120,6 @@
     <string name="usb_title">Cabo USB</string>
     <string name="usb_on">Detectado · toque para conectar</string>
     <string name="usb_off">Ative a Depuração USB e plugue o cabo</string>
+    <string name="fps_auto">Automático</string>
+    <string name="fps_auto_value">Automático · %1$d fps agora</string>
 </resources>

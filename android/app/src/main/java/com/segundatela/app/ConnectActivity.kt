@@ -101,8 +101,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         escolha(v, R.string.opt_codec, listOf(
             "h264" to getString(R.string.codec_h264),
             "h265" to getString(R.string.codec_h265)), aj.codec) { aj.codec = it; personalizado() }
-        deslizante(v, R.string.fps, 10f, 60f, 1f, aj.fps.toFloat(),
-            { x -> "${x.toInt()} fps" }) { aj.fps = it.toInt(); personalizado() }
+        controleFps(v)
         dica(v, R.string.fps_hint)
         deslizante(v, R.string.opt_bitrate, 0f, 150f, 1f, aj.mbps.toFloat(),
             { x -> if (x < 1f) getString(R.string.bitrate_auto) else "${x.toInt()} Mbps" }) {
@@ -256,6 +255,63 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     }
 
+    /** FPS: valor livre de 10 a 60, ou Automático (a rede escolhe ao conectar). */
+    private fun controleFps(pai: LinearLayout) {
+        val row = linhaBase(pai, vertical = true)
+        row.background = null
+        val topo = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        topo.addView(texto(getString(R.string.fps), 17f, R.color.text_primary),
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val valor = texto("", 14f, R.color.accent)
+        topo.addView(valor)
+        row.addView(topo, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+
+        var manual = if (aj.fps in 10..60) aj.fps else 60
+        val slider = Slider(this).apply {
+            valueFrom = 10f; valueTo = 60f; stepSize = 1f
+            value = manual.toFloat()
+            labelBehavior = LabelFormatter.LABEL_GONE
+        }
+        val auto = SwitchMaterial(this).apply {
+            text = getString(R.string.fps_auto)
+            setTextColor(getColor(R.color.text_primary))
+            isChecked = aj.fps == 0
+        }
+        fun atualizar() {
+            if (auto.isChecked) {
+                valor.text = getString(R.string.fps_auto_value, fpsAutomatico())
+                slider.isEnabled = false
+            } else {
+                valor.text = "${manual} fps"
+                slider.isEnabled = true
+            }
+        }
+        slider.addOnChangeListener { _, x, doUsuario ->
+            manual = x.toInt()
+            if (doUsuario) {
+                if (!auto.isChecked) aj.fps = manual
+                personalizado(); aj.salvar(prefs)
+            }
+            atualizar()
+        }
+        auto.setOnCheckedChangeListener { _, marcado ->
+            aj.fps = if (marcado) 0 else manual
+            personalizado(); aj.salvar(prefs)
+            atualizar()
+        }
+        row.addView(auto)
+        row.addView(slider, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        atualizar()
+    }
+
+    /** Automático: 60 fps quando a rede é rápida (5/6 GHz ou link alto); senão 30. */
+    private fun fpsAutomatico(): Int {
+        val st = try { NetInfo.read(this) } catch (_: Exception) { return 30 }
+        return if (st.band == "5 GHz" || st.band == "6 GHz" || st.linkMbps >= 200) 60 else 30
+    }
+
     /** Linha com interruptor à direita; tocar em qualquer lugar liga/desliga. */
     private fun chave(pai: LinearLayout, titulo: Int, atual: Boolean, aoMudar: (Boolean) -> Unit) {
         val row = linhaBase(pai, vertical = false)
@@ -378,10 +434,14 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         val h = par((if (horizontal) menor else maior) * aj.resolucao / 100)
         val escala = if (aj.escala > 0) aj.escala else Ajustes.escalaAuto(maxOf(w, h))
 
+        // Automático: cabo USB sempre 60; Wi‑Fi conforme a banda e a velocidade.
+        val fps = if (aj.fps > 0) aj.fps
+            else if (host == "127.0.0.1") 60 else fpsAutomatico()
+
         val mbps = if (aj.mbps > 0) aj.mbps else {
             // ~0,1 bit por pixel; limitado pela velocidade do Wi-Fi.
             val bpp = if (aj.codec == "h265") 14_000_000L else 10_000_000L
-            val ideal = (w.toLong() * h * aj.fps / bpp).toInt().coerceIn(6, 60)
+            val ideal = (w.toLong() * h * fps / bpp).toInt().coerceIn(6, 60)
             if (host == "127.0.0.1") ideal else {
                 val link = try { NetInfo.read(this).linkMbps } catch (_: Exception) { 0 }
                 if (link > 0) minOf(ideal, maxOf(6, link * 2 / 5)) else ideal
@@ -390,9 +450,9 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
 
         val path = StringBuilder()
         if (aj.compat) {
-            path.append("/stream?fps=${minOf(aj.fps, 30)}&quality=${aj.jpeg}")
+            path.append("/stream?fps=${minOf(fps, 30)}&quality=${aj.jpeg}")
         } else {
-            path.append("/video?fps=${aj.fps}&kbps=${mbps * 1000}&codec=${aj.codec}")
+            path.append("/video?fps=$fps&kbps=${mbps * 1000}&codec=${aj.codec}")
             path.append("&taxa=${aj.taxa}&cq=${aj.cq}&vel=${aj.velocidade}")
             path.append("&gop=${aj.gop}&intra=${if (aj.intra) 1 else 0}")
         }

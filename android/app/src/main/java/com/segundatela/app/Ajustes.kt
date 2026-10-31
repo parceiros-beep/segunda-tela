@@ -13,7 +13,7 @@ data class Ajustes(
     // Vídeo e desempenho
     var perfil: String = "personalizado", // desenho | trabalho | video | economia | personalizado
     var codec: String = "h264",         // h264 | h265
-    var fps: Int = 60,                  // livre, de 10 a 60
+    var fps: Int = 60,                  // 0 = automático; senão livre, de 10 a 60
     var mbps: Int = 0,                  // 0 = automático; 2..150
     var taxa: String = "cbr",           // cbr | vbr | cq
     var cq: Int = 23,                   // qualidade constante (menor = melhor)
@@ -96,7 +96,7 @@ data class Ajustes(
             orientacao = p.getString("orientacao", "auto")!!,
             perfil = p.getString("perfil", "personalizado")!!,
             codec = p.getString("codec", "h264")!!,
-            fps = p.getInt("fps3", 60).coerceIn(10, 60),
+            fps = p.getInt("fps3", 60).let { if (it == 0) 0 else it.coerceIn(10, 60) },
             mbps = p.getInt("mbps", 0).coerceIn(0, 150),
             taxa = p.getString("taxa", "cbr")!!,
             cq = p.getInt("cq", 23).coerceIn(15, 40),
