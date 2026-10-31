@@ -58,10 +58,33 @@ class InputSender(
                 "X-Stream: input\r\n\r\n"
             o.write(req.toByteArray(Charsets.ISO_8859_1)); o.flush()
             socket = s; out = o
+            lerRespostas(s)
         } catch (_: Exception) {
             if (ativo) handler?.postDelayed({ conectar() }, 1000)
         }
     }
+
+    /** Recebe "pong <t>" do servidor e calcula o atraso de ida e volta. */
+    var aoPing: ((Long) -> Unit)? = null
+
+    private fun lerRespostas(s: Socket) {
+        Thread({
+            try {
+                val r = s.getInputStream().bufferedReader(Charsets.UTF_8)
+                while (ativo) {
+                    val l = r.readLine() ?: break
+                    val i = l.indexOf("pong ")
+                    if (i >= 0) {
+                        val t = l.substring(i + 5).trim().toLongOrNull() ?: continue
+                        aoPing?.invoke(android.os.SystemClock.elapsedRealtime() - t)
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }, "input-resp").apply { isDaemon = true; start() }
+    }
+
+    fun ping() = enfileira("png ${android.os.SystemClock.elapsedRealtime()}")
 
     // ---- API de eventos (coordenadas normalizadas 0..1) ----
     fun move(x: Float, y: Float) = enfileira("m ${f(x)} ${f(y)}")

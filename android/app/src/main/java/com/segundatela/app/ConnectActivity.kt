@@ -16,6 +16,8 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipDrawable
 import com.google.android.material.chip.ChipGroup
+import com.google.android.material.slider.LabelFormatter
+import com.google.android.material.slider.Slider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.segundatela.app.databinding.ActivityConnectBinding
@@ -57,7 +59,10 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
     }
 
     // ============================================================== opções
+    private lateinit var grpPerfil: ChipGroup
+
     private fun montarOpcoes() {
+        // ---------------- Tela
         val tela = b.grpTela
         escolha(tela, R.string.opt_mode, listOf(
             "estender" to getString(R.string.mode_extend),
@@ -68,56 +73,125 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
             "acima" to getString(R.string.side_top)), aj.lado) { aj.lado = it }
         val (lw, lh) = tamanhoNativo()
         val maior = maxOf(lw, lh); val menor = minOf(lw, lh)
-        escolha(tela, R.string.opt_resolution, listOf(100, 75, 60, 50).map { pct ->
-            val nome = when (pct) {
-                100 -> getString(R.string.res_max)
-                75 -> getString(R.string.res_high)
-                60 -> getString(R.string.res_balanced)
-                else -> getString(R.string.res_fast)
-            }
-            pct.toString() to "$nome · ${par(maior * pct / 100)}×${par(menor * pct / 100)}"
-        }, aj.resolucao.toString()) { aj.resolucao = it.toInt() }
+        deslizante(tela, R.string.opt_resolution, 25f, 100f, 5f, aj.resolucao.toFloat(),
+            { v -> val pct = v.toInt()
+                "$pct% · ${par(maior * pct / 100)}×${par(menor * pct / 100)}" }) {
+            aj.resolucao = it.toInt(); personalizado()
+        }
         escolha(tela, R.string.opt_scale,
             listOf("0" to getString(R.string.auto)) +
                 Ajustes.ESCALAS.map { it.toString() to "$it%" },
             aj.escala.toString()) { aj.escala = it.toInt() }
-        escolha(tela, R.string.fps, listOf("30" to "30 fps", "60" to "60 fps"),
-            aj.fps.toString()) { aj.fps = it.toInt() }
-        escolha(tela, R.string.opt_quality, listOf(
-            "0" to getString(R.string.auto),
-            "8" to getString(R.string.q_low), "15" to getString(R.string.q_mid),
-            "30" to getString(R.string.q_high), "50" to getString(R.string.q_max)),
-            aj.mbps.toString()) { aj.mbps = it.toInt() }
         escolha(tela, R.string.opt_orientation, listOf(
             "auto" to getString(R.string.or_auto),
             "horizontal" to getString(R.string.or_landscape),
             "vertical" to getString(R.string.or_portrait)), aj.orientacao) { aj.orientacao = it }
 
+        // ---------------- Vídeo e desempenho
+        val v = b.grpVideo
+        grpPerfil = escolha(v, R.string.opt_profile, listOf(
+            "desenho" to getString(R.string.prof_draw),
+            "trabalho" to getString(R.string.prof_work),
+            "video" to getString(R.string.prof_video),
+            "economia" to getString(R.string.prof_eco),
+            "personalizado" to getString(R.string.prof_custom)), aj.perfil) {
+            if (it != "personalizado") {
+                aj.aplicarPerfil(it); aj.salvar(prefs)
+                recreate()  // mostra os valores do perfil
+            } else aj.perfil = it
+        }
+        dica(v, R.string.profile_hint)
+        escolha(v, R.string.opt_codec, listOf(
+            "h264" to getString(R.string.codec_h264),
+            "h265" to getString(R.string.codec_h265)), aj.codec) { aj.codec = it; personalizado() }
+        escolha(v, R.string.fps, listOf(30, 60, 90, 120).map { it.toString() to "$it fps" },
+            aj.fps.toString()) { aj.fps = it.toInt(); personalizado() }
+        dica(v, R.string.fps_hint)
+        deslizante(v, R.string.opt_bitrate, 0f, 150f, 1f, aj.mbps.toFloat(),
+            { x -> if (x < 1f) getString(R.string.bitrate_auto) else "${x.toInt()} Mbps" }) {
+            aj.mbps = if (it < 2f && it >= 1f) 2 else it.toInt(); personalizado()
+        }
+        escolha(v, R.string.opt_rate, listOf(
+            "cbr" to getString(R.string.rate_cbr),
+            "vbr" to getString(R.string.rate_vbr),
+            "cq" to getString(R.string.rate_cq)), aj.taxa) { aj.taxa = it; personalizado() }
+        dica(v, R.string.rate_hint)
+        deslizante(v, R.string.opt_cq, 15f, 40f, 1f, aj.cq.toFloat(),
+            { x -> getString(R.string.cq_value, x.toInt()) }) { aj.cq = it.toInt(); personalizado() }
+        escolha(v, R.string.opt_speed, listOf(
+            "rapida" to getString(R.string.speed_fast),
+            "equilibrada" to getString(R.string.speed_balanced),
+            "qualidade" to getString(R.string.speed_quality)), aj.velocidade) {
+            aj.velocidade = it; personalizado()
+        }
+        deslizante(v, R.string.opt_gop, 0.5f, 10f, 0.5f, aj.gop,
+            { x -> getString(R.string.gop_value, x) }) { aj.gop = it; personalizado() }
+        chave(v, R.string.opt_intra, aj.intra) { aj.intra = it; personalizado() }
+        chave(v, R.string.opt_latest, aj.ultimoQuadro) { aj.ultimoQuadro = it; personalizado() }
+        chave(v, R.string.opt_stats, aj.estatisticas) { aj.estatisticas = it }
+        chave(v, R.string.opt_cursor, aj.cursor) { aj.cursor = it }
+
+        // ---------------- Toque e caneta
         val toque = b.grpToque
         escolha(toque, R.string.opt_touch, listOf(
             "nativo" to getString(R.string.touch_native),
             "mouse" to getString(R.string.touch_mouse),
             "desligado" to getString(R.string.touch_off)), aj.toque) { aj.toque = it }
         chave(toque, R.string.opt_pen, aj.caneta) { aj.caneta = it }
+        deslizante(toque, R.string.opt_curve, 0.4f, 2.5f, 0.1f, aj.curva,
+            { x -> when {
+                x < 0.95f -> getString(R.string.curve_soft, x)
+                x > 1.05f -> getString(R.string.curve_firm, x)
+                else -> getString(R.string.curve_linear) } }) { aj.curva = it }
         chave(toque, R.string.opt_palm, aj.palma) { aj.palma = it }
         chave(toque, R.string.opt_sidebar, aj.barra) { aj.barra = it }
+        escolha(toque, R.string.opt_sidebar_side, listOf(
+            "esquerda" to getString(R.string.side_left),
+            "direita" to getString(R.string.side_right)), aj.barraLado) { aj.barraLado = it }
 
+        // ---------------- Avançado
         val av = b.grpAvancado
         chave(av, R.string.opt_compat, aj.compat) { aj.compat = it }
+        deslizante(av, R.string.opt_jpeg, 30f, 95f, 5f, aj.jpeg.toFloat(),
+            { x -> "${x.toInt()}" }) { aj.jpeg = it.toInt() }
         chave(av, R.string.opt_autoconnect, aj.autoconectar) { aj.autoconectar = it }
+    }
+
+    /** Mexeu numa opção de vídeo: o perfil vira "Personalizado". */
+    private fun personalizado() {
+        if (aj.perfil == "personalizado") return
+        aj.perfil = "personalizado"
+        for (i in 0 until grpPerfil.childCount) {
+            val c = grpPerfil.getChildAt(i) as Chip
+            if (c.tag == "personalizado") c.isChecked = true
+        }
     }
 
     private fun par(v: Int) = v / 2 * 2
 
-    private fun escolha(pai: LinearLayout, titulo: Int, itens: List<Pair<String, String>>,
-                        atual: String, aoMudar: (String) -> Unit) {
+    private fun cabecalho(pai: LinearLayout, texto: String): TextView {
         val d = resources.displayMetrics.density
-        pai.addView(TextView(this).apply {
-            text = getString(titulo)
+        val tv = TextView(this).apply {
+            text = texto
             setTextColor(getColor(R.color.text_primary))
             textSize = 15f
             setPadding(0, (16 * d).toInt(), 0, (4 * d).toInt())
+        }
+        pai.addView(tv)
+        return tv
+    }
+
+    private fun dica(pai: LinearLayout, texto: Int) {
+        pai.addView(TextView(this).apply {
+            text = getString(texto)
+            setTextColor(getColor(R.color.text_muted))
+            textSize = 12.5f
         })
+    }
+
+    private fun escolha(pai: LinearLayout, titulo: Int, itens: List<Pair<String, String>>,
+                        atual: String, aoMudar: (String) -> Unit): ChipGroup {
+        cabecalho(pai, getString(titulo))
         val grupo = ChipGroup(this).apply {
             isSingleSelection = true
             isSelectionRequired = true
@@ -127,12 +201,32 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
                 setChipDrawable(ChipDrawable.createFromAttributes(context, null, 0,
                     com.google.android.material.R.style.Widget_MaterialComponents_Chip_Choice))
                 text = rotulo
+                tag = valor
                 isCheckable = true
                 isChecked = valor == atual
                 setOnClickListener { aoMudar(valor); aj.salvar(prefs) }
             })
         }
         pai.addView(grupo)
+        return grupo
+    }
+
+    /** Controle deslizante com o valor escrito ao lado do título. */
+    private fun deslizante(pai: LinearLayout, titulo: Int, de: Float, ate: Float, passo: Float,
+                           atual: Float, rotulo: (Float) -> String, aoMudar: (Float) -> Unit) {
+        val nome = getString(titulo)
+        // O Slider exige valor alinhado ao passo e dentro da faixa.
+        val inicial = (de + Math.round((atual.coerceIn(de, ate) - de) / passo) * passo)
+            .coerceIn(de, ate)
+        val tv = cabecalho(pai, "$nome: ${rotulo(inicial)}")
+        pai.addView(Slider(this).apply {
+            valueFrom = de; valueTo = ate; stepSize = passo; value = inicial
+            labelBehavior = LabelFormatter.LABEL_GONE
+            addOnChangeListener { _, x, doUsuario ->
+                tv.text = "$nome: ${rotulo(x)}"
+                if (doUsuario) { aoMudar(x); aj.salvar(prefs) }
+            }
+        })
     }
 
     private fun chave(pai: LinearLayout, titulo: Int, atual: Boolean, aoMudar: (Boolean) -> Unit) {
@@ -245,7 +339,8 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
 
         val mbps = if (aj.mbps > 0) aj.mbps else {
             // ~0,1 bit por pixel; limitado pela velocidade do Wi-Fi.
-            val ideal = (w.toLong() * h * aj.fps / 10_000_000L).toInt().coerceIn(8, 50)
+            val bpp = if (aj.codec == "h265") 14_000_000L else 10_000_000L
+            val ideal = (w.toLong() * h * aj.fps / bpp).toInt().coerceIn(6, 60)
             if (host == "127.0.0.1") ideal else {
                 val link = try { NetInfo.read(this).linkMbps } catch (_: Exception) { 0 }
                 if (link > 0) minOf(ideal, maxOf(6, link * 2 / 5)) else ideal
@@ -254,10 +349,13 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
 
         val path = StringBuilder()
         if (aj.compat) {
-            path.append("/stream?fps=${minOf(aj.fps, 30)}&quality=75")
+            path.append("/stream?fps=${minOf(aj.fps, 30)}&quality=${aj.jpeg}")
         } else {
-            path.append("/video?fps=${aj.fps}&kbps=${mbps * 1000}")
+            path.append("/video?fps=${aj.fps}&kbps=${mbps * 1000}&codec=${aj.codec}")
+            path.append("&taxa=${aj.taxa}&cq=${aj.cq}&vel=${aj.velocidade}")
+            path.append("&gop=${aj.gop}&intra=${if (aj.intra) 1 else 0}")
         }
+        path.append("&cursor=${if (aj.cursor) 1 else 0}")
         path.append("&w=$w&h=$h&modo=${aj.modo}&lado=${aj.lado}&escala=$escala")
         if (aj.pin.isNotEmpty()) path.append("&pin=${aj.pin}")
 

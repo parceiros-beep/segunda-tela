@@ -139,6 +139,27 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Vídeo e desempenho -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Card.Section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp">
+
+            <LinearLayout
+                android:id="@+id/grpVideo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/Label.Section"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sec_video" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Toque e caneta -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Card.Section"

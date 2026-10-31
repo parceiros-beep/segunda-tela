@@ -32,9 +32,19 @@ class H264View @JvmOverloads constructor(
         fun onDisconnected(reason: String)
         fun onStats(fps: Double)
         fun onFatal(msg: String)
+        fun onEstatisticas(e: Estatisticas) {}
     }
 
+    /** Números de 1 segundo para o painel de estatísticas. */
+    data class Estatisticas(
+        val fps: Double, val mbps: Double, val decodMs: Double,
+        val descartados: Int, val codec: String, val encoder: String,
+        val w: Int, val h: Int
+    )
+
     var listener: Listener? = null
+    /** Mostrar sempre o quadro mais novo (descarta os atrasados). */
+    @Volatile var ultimoQuadro = true
     private var host = ""
     private var port = 8080
     private var path = ""
@@ -49,6 +59,13 @@ class H264View @JvmOverloads constructor(
     private var codecH = 0
     @Volatile private var videoW = 0
     @Volatile private var videoH = 0
+    @Volatile private var videoMime = MediaFormat.MIMETYPE_VIDEO_AVC
+    private var codecMime = ""
+    @Volatile private var encoderNome = ""
+    // Estatísticas (janela de 1 s)
+    @Volatile private var descartados = 0
+    @Volatile private var somaDecodUs = 0L
+    @Volatile private var nDecod = 0
 
     init { holder.addCallback(this) }
 
@@ -150,8 +167,8 @@ class H264View @JvmOverloads constructor(
     private fun lerPacotes(inp: DataInputStream) {
         var buf = ByteArray(1 shl 20)
         var frames = 0
+        var bytes = 0L
         var janela = System.currentTimeMillis()
-        var pts = 0L
         while (running) {
             val tipo = inp.readUnsignedByte()
             val n = inp.readInt()
@@ -162,26 +179,37 @@ class H264View @JvmOverloads constructor(
                 0 -> {
                     val j = JSONObject(String(buf, 0, n, Charsets.UTF_8))
                     val w = j.optInt("w"); val h = j.optInt("h")
+                    videoMime = if (j.optString("codec") == "h265")
+                        MediaFormat.MIMETYPE_VIDEO_HEVC else MediaFormat.MIMETYPE_VIDEO_AVC
                     if (w != videoW || h != videoH) {
                         videoW = w; videoH = h
                         post { requestLayout() }
                     }
                     val enc = j.optString("encoder", "")
                     if (enc.isNotEmpty()) {
+                        encoderNome = enc
                         val ext = if (j.optBoolean("extendido")) "Tela estendida" else "Espelhando"
                         post { listener?.onConnected("$ext · ${w}×$h · $enc") }
                     }
                 }
                 1 -> {
+                    bytes += n
                     val c = garantirCodec() ?: continue
-                    alimentar(c, buf, n, pts)
-                    pts += 16_666
+                    // pts = hora da chegada: na saída dá o tempo de decodificação.
+                    alimentar(c, buf, n, System.nanoTime() / 1000)
                     frames++
                     val agora = System.currentTimeMillis()
                     if (agora - janela >= 1000) {
-                        val fps = frames * 1000.0 / (agora - janela)
-                        post { listener?.onStats(fps) }
-                        frames = 0; janela = agora
+                        val dt = (agora - janela) / 1000.0
+                        val fps = frames / dt
+                        val e = Estatisticas(fps, bytes * 8 / dt / 1_000_000.0,
+                            if (nDecod > 0) somaDecodUs / nDecod / 1000.0 else 0.0,
+                            descartados,
+                            if (codecMime == MediaFormat.MIMETYPE_VIDEO_HEVC) "H.265" else "H.264",
+                            encoderNome, videoW, videoH)
+                        somaDecodUs = 0; nDecod = 0; descartados = 0
+                        post { listener?.onStats(fps); listener?.onEstatisticas(e) }
+                        frames = 0; bytes = 0; janela = agora
                     }
                 }
                 2 -> {
@@ -195,22 +223,23 @@ class H264View @JvmOverloads constructor(
     private fun garantirCodec(): MediaCodec? {
         val w = videoW; val h = videoH
         if (w <= 0 || h <= 0) return null
-        codec?.let { if (w == codecW && h == codecH) return it }
+        val mime = videoMime
+        codec?.let { if (w == codecW && h == codecH && mime == codecMime) return it }
         liberarCodec()
         if (!surfaceOk.await(5, TimeUnit.SECONDS)) return null
         val c = try {
-            criarDecoder(w, h, extras = true)
+            criarDecoder(mime, w, h, extras = true)
         } catch (e: Exception) {
             // Alguns decodificadores recusam as chaves de baixa latência.
-            criarDecoder(w, h, extras = false)
+            criarDecoder(mime, w, h, extras = false)
         }
-        codec = c; codecW = w; codecH = h
+        codec = c; codecW = w; codecH = h; codecMime = mime
         outThread = Thread({ saida(c) }, "video-out").apply { isDaemon = true; start() }
         return c
     }
 
-    private fun criarDecoder(w: Int, h: Int, extras: Boolean): MediaCodec {
-        val fmt = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h)
+    private fun criarDecoder(mime: String, w: Int, h: Int, extras: Boolean): MediaCodec {
+        val fmt = MediaFormat.createVideoFormat(mime, w, h)
         fmt.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, w * h)
         if (extras) {
             if (Build.VERSION.SDK_INT >= 30) fmt.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
@@ -218,7 +247,7 @@ class H264View @JvmOverloads constructor(
             fmt.setInteger("vendor.qti-ext-dec-low-latency.enable", 1)
             fmt.setInteger("vendor.low-latency.enable", 1)
         }
-        val c = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+        val c = MediaCodec.createDecoderByType(mime)
         try {
             c.configure(fmt, holder.surface, null, 0)
             c.start()
@@ -236,7 +265,7 @@ class H264View @JvmOverloads constructor(
                 idx = c.dequeueInputBuffer(10_000)
                 if (idx >= 0 || !running) break
             }
-            if (idx < 0) return
+            if (idx < 0) { descartados++; return }
             val ib = c.getInputBuffer(idx) ?: return
             ib.clear()
             ib.put(data, 0, minOf(n, ib.capacity()))
@@ -249,9 +278,23 @@ class H264View @JvmOverloads constructor(
     private fun saida(c: MediaCodec) {
         val info = MediaCodec.BufferInfo()
         try {
+            var pendente = -1
             while (running && codec === c) {
-                val idx = c.dequeueOutputBuffer(info, 20_000)
-                if (idx >= 0) c.releaseOutputBuffer(idx, true)
+                // Com "quadro mais recente": se já há outro pronto, pula o antigo.
+                val espera = if (pendente >= 0) 0L else 20_000L
+                val idx = c.dequeueOutputBuffer(info, espera)
+                if (idx >= 0) {
+                    val agoraUs = System.nanoTime() / 1000
+                    if (info.presentationTimeUs in 1..agoraUs) {
+                        somaDecodUs += agoraUs - info.presentationTimeUs; nDecod++
+                    }
+                    if (!ultimoQuadro) { c.releaseOutputBuffer(idx, true); continue }
+                    if (pendente >= 0) { c.releaseOutputBuffer(pendente, false); descartados++ }
+                    pendente = idx
+                } else if (pendente >= 0) {
+                    c.releaseOutputBuffer(pendente, true)
+                    pendente = -1
+                }
             }
         } catch (_: Exception) {
         }

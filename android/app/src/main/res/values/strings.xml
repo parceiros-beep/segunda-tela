@@ -74,4 +74,44 @@
     <string name="disconnect">Desconectar</string>
 
     <string name="help">Como usar: abra o Segunda Tela no computador (instalador do Windows), deixe PC e tablet na mesma rede Wi‑Fi e toque no computador que aparecer acima. Pelo cabo USB a imagem fica mais rápida.\n\nNo modo Estender, o Windows ganha um monitor novo do tamanho do tablet: arraste janelas para ele. A posição e a escala também podem ser ajustadas em Configurações › Sistema › Tela no PC.</string>
+    <!-- Vídeo e desempenho -->
+    <string name="sec_video">Vídeo e desempenho</string>
+    <string name="opt_profile">Perfil</string>
+    <string name="prof_draw">Desenho / S Pen</string>
+    <string name="prof_work">Trabalho / texto</string>
+    <string name="prof_video">Vídeo / filmes</string>
+    <string name="prof_eco">Wi‑Fi fraco / economia</string>
+    <string name="prof_custom">Personalizado</string>
+    <string name="profile_hint">O perfil ajusta tudo abaixo de uma vez. Mexeu em algo, vira Personalizado.</string>
+    <string name="opt_codec">Codec</string>
+    <string name="codec_h264">H.264 (mais compatível)</string>
+    <string name="codec_h265">H.265 (mais nítido, menos dados)</string>
+    <string name="fps_hint">90 e 120 fps precisam de placa de vídeo forte e rede rápida (ideal: cabo USB ou Wi‑Fi 5/6 GHz).</string>
+    <string name="opt_bitrate">Bitrate</string>
+    <string name="bitrate_auto">Automático</string>
+    <string name="opt_rate">Controle de taxa</string>
+    <string name="rate_cbr">Constante (CBR)</string>
+    <string name="rate_vbr">Variável (VBR)</string>
+    <string name="rate_cq">Qualidade constante</string>
+    <string name="rate_hint">CBR: mais estável no Wi‑Fi. VBR: economiza com a tela parada e sobe com movimento (até 1,5× o bitrate). Qualidade constante: imagem sempre nítida, o bitrate vira o limite máximo.</string>
+    <string name="opt_cq">Nível de qualidade (modo qualidade constante)</string>
+    <string name="cq_value">%1$d (menor = mais nítido)</string>
+    <string name="opt_speed">Velocidade do encoder</string>
+    <string name="speed_fast">Mais rápida</string>
+    <string name="speed_balanced">Equilibrada</string>
+    <string name="speed_quality">Mais qualidade</string>
+    <string name="opt_gop">Intervalo de quadro‑chave</string>
+    <string name="gop_value">%1$.1f s</string>
+    <string name="opt_intra">Atualização intra (sem engasgos de quadro‑chave)</string>
+    <string name="opt_latest">Mostrar sempre o quadro mais recente (menos atraso)</string>
+    <string name="opt_stats">Mostrar estatísticas na tela</string>
+    <string name="opt_cursor">Mostrar o cursor do PC no vídeo</string>
+
+    <!-- Caneta e barra -->
+    <string name="opt_curve">Curva de pressão da caneta</string>
+    <string name="curve_soft">macia (%1$.1f)</string>
+    <string name="curve_firm">firme (%1$.1f)</string>
+    <string name="curve_linear">normal</string>
+    <string name="opt_sidebar_side">Lado da barra de atalhos</string>
+    <string name="opt_jpeg">Qualidade da imagem no modo compatível</string>
 </resources>

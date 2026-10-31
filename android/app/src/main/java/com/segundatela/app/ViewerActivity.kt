@@ -62,6 +62,15 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         }
     }
 
+    // Estatísticas
+    @Volatile private var rttMs = -1L
+    private val pinger = object : Runnable {
+        override fun run() {
+            input?.ping()
+            ui.postDelayed(this, 1000)
+        }
+    }
+
     // Modificadores fixos da barra lateral (Ctrl/Shift/Alt pressionados)
     private val modificadores = HashMap<Int, View>()
     private var selfEdit = false
@@ -97,6 +106,7 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
             tela = b.mjpeg; view = b.mjpeg
         } else {
             b.h264.listener = this
+            b.h264.ultimoQuadro = aj.ultimoQuadro
             b.h264.start(host, port, path)
             tela = b.h264; view = b.h264
         }
@@ -104,8 +114,10 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         view.setOnHoverListener { _, e -> onHover(e) }
         view.setOnGenericMotionListener { _, e -> onGeneric(e) }
 
+        input?.aoPing = { ms -> rttMs = ms }
         montarBarra()
         montarMenu()
+        mostrarEstatisticas(aj.estatisticas)
         b.status.text = getString(R.string.connecting)
     }
 
@@ -135,6 +147,10 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         b.swBarra.setOnCheckedChangeListener { _, v ->
             aj.barra = v; aj.salvar(prefs)
             b.sidebarWrap.visibility = if (v) View.VISIBLE else View.GONE
+        }
+        b.swStats.isChecked = aj.estatisticas
+        b.swStats.setOnCheckedChangeListener { _, v ->
+            aj.estatisticas = v; aj.salvar(prefs); mostrarEstatisticas(v)
         }
         b.swPalma.isChecked = aj.palma
         b.swPalma.setOnCheckedChangeListener { _, v -> aj.palma = v; aj.salvar(prefs) }
@@ -181,13 +197,41 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         }
     }
 
+    // ========================================================= estatísticas
+    private fun mostrarEstatisticas(ligar: Boolean) {
+        b.lblStats.visibility = if (ligar) View.VISIBLE else View.GONE
+        ui.removeCallbacks(pinger)
+        if (ligar) ui.post(pinger)
+    }
+
+    override fun onEstatisticas(e: H264View.Estatisticas) {
+        if (b.lblStats.visibility != View.VISIBLE) return
+        val rede = if (rttMs >= 0) "$rttMs ms" else "—"
+        b.lblStats.text = String.format(java.util.Locale.US,
+            "%dx%d %s  %.0f fps\n%.1f Mbps  rede %s  decod %.0f ms\ndescartados %d\n%s",
+            e.w, e.h, e.codec, e.fps, e.mbps, rede, e.decodMs, e.descartados, e.encoder)
+    }
+
     // ======================================================= barra de atalhos
     private fun montarBarra() {
         b.sidebarWrap.visibility = if (aj.barra) View.VISIBLE else View.GONE
+        val direita = aj.barraLado == "direita"
+        if (direita) {
+            // Espelha a barra: fica na borda direita com o puxador por dentro.
+            (b.sidebarWrap.layoutParams as android.widget.FrameLayout.LayoutParams).gravity =
+                Gravity.END
+            b.sidebarWrap.layoutDirection = View.LAYOUT_DIRECTION_RTL
+            b.sidebarHandle.scaleX = -1f
+            b.btnSettings.layoutParams = (b.btnSettings.layoutParams as
+                android.widget.FrameLayout.LayoutParams).apply { gravity = Gravity.TOP or Gravity.START }
+        }
+        val abre = if (direita) "‹" else "›"
+        val fecha = if (direita) "›" else "‹"
+        b.sidebarHandle.text = fecha
         b.sidebarHandle.setOnClickListener {
             val aberto = b.sidebarScroll.visibility == View.VISIBLE
             b.sidebarScroll.visibility = if (aberto) View.GONE else View.VISIBLE
-            b.sidebarHandle.text = if (aberto) "›" else "‹"
+            b.sidebarHandle.text = if (aberto) abre else fecha
         }
         tecla("⌨", "Teclado") { abrirTeclado() }
         modificador("Ctrl", 0xA2)
@@ -378,7 +422,8 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         val x = if (hist >= 0) e.getHistoricalX(hist) else e.x
         val y = if (hist >= 0) e.getHistoricalY(hist) else e.y
         val p = tela.toImage(x, y) ?: return
-        val pressao = if (hist >= 0) e.getHistoricalPressure(hist) else e.pressure
+        val bruta = if (hist >= 0) e.getHistoricalPressure(hist) else e.pressure
+        val pressao = Math.pow(bruta.coerceIn(0f, 1f).toDouble(), aj.curva.toDouble()).toFloat()
         val tilt = e.getAxisValue(MotionEvent.AXIS_TILT)            // radianos
         val orient = e.getAxisValue(MotionEvent.AXIS_ORIENTATION)   // radianos
         val graus = Math.toDegrees(tilt.toDouble())
@@ -533,6 +578,7 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
     }
 
     override fun onDestroy() {
+        ui.removeCallbacks(pinger)
         b.h264.stop()
         b.mjpeg.stop()
         soltarModificadores()

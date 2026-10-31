@@ -80,6 +80,21 @@
         android:textColor="#FFFFFF"
         android:textSize="13sp" />
 
+    <!-- Painel de estatísticas (opcional) -->
+    <TextView
+        android:id="@+id/lblStats"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="10dp"
+        android:background="@drawable/status_pill"
+        android:fontFamily="monospace"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="8dp"
+        android:textColor="#E6FFFFFF"
+        android:textSize="11sp"
+        android:visibility="gone" />
+
     <!-- Botão de menu, discreto no canto -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSettings"
@@ -171,6 +186,13 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/opt_palm"
+            android:textColor="@color/text_primary" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swStats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/opt_stats"
             android:textColor="@color/text_primary" />
 
         <com.google.android.material.button.MaterialButton
