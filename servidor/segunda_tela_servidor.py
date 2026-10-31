@@ -197,10 +197,16 @@ class Handler(BaseHTTPRequestHandler):
     # ---------------------------------------------------------- H.264
     def transmitir_h264(self, qs):
         geracao = Controle.nova()
-        fps = numero(qs, "fps", 60, int, 10, 120)
-        kbps = numero(qs, "kbps", 20000, int, 1000, 150000)
+        txt = lambda nome, padrao: qs.get(nome, [padrao])[0]
+        opcoes = video.Opcoes(
+            fps=numero(qs, "fps", 60, int, 10, 120),
+            kbps=numero(qs, "kbps", 20000, int, 500, 150000),
+            codec=txt("codec", "h264"), taxa=txt("taxa", "cbr"),
+            cq=numero(qs, "cq", 23, int, 10, 51), vel=txt("vel", "rapida"),
+            gop=numero(qs, "gop", 2.0, float, 0.5, 30.0),
+            intra=txt("intra", "0") == "1", cursor=txt("cursor", "1") == "1")
         cliente = self.client_address[0]
-        print("[+] %s conectou (H.264, %d fps, %d Mbps)" % (cliente, fps, kbps // 1000))
+        print("[+] %s conectou (%s)" % (cliente, opcoes.resumo()))
         alvo = preparar_tela(qs)
 
         self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -222,31 +228,34 @@ class Handler(BaseHTTPRequestHandler):
             with trava:
                 sock.sendall(struct.pack(">BI", tipo, len(dados)) + dados)
 
+        enviou_config = []
+
         def ao_quadro(q):
             if q is None:
                 fim.set()
                 return
             try:
+                if not enviou_config:
+                    enviou_config.append(1)
+                    pacote(0, json.dumps({
+                        "w": alvo["w"], "h": alvo["h"], "codec": sessao.codec,
+                        "encoder": sessao.descricao, "fps": opcoes.fps,
+                        "kbps": opcoes.kbps, "extendido": Controle.extendido}).encode())
                 pacote(1, q)
             except OSError:
                 fim.set()
                 sessao.parar()
 
-        sessao = video.Sessao(alvo, fps, kbps, ao_quadro)
+        sessao = video.Sessao(alvo, opcoes, ao_quadro)
         with Controle.lock:
             if Controle.geracao != geracao:
                 return
             Controle.sessao = sessao
         try:
-            pacote(0, json.dumps({"w": alvo["w"], "h": alvo["h"],
-                                  "extendido": Controle.extendido}).encode())
             if not sessao.iniciar():
                 pacote(2, "Nenhum encoder de vídeo funcionou neste PC. "
                           "Use o modo Compatível.".encode())
                 return
-            pacote(0, json.dumps({"w": alvo["w"], "h": alvo["h"],
-                                  "encoder": sessao.descricao,
-                                  "extendido": Controle.extendido}).encode())
             # Espera o fim (desconexão ou ffmpeg encerrado); detecta queda
             # do cliente lendo o socket.
             sock.settimeout(1.0)
@@ -352,6 +361,10 @@ class Handler(BaseHTTPRequestHandler):
                 if "|" not in linha or linha.rsplit("|", 1)[1] != self.pin:
                     continue
                 linha = linha.rsplit("|", 1)[0]
+            if linha.startswith("png "):  # medição de atraso pelo app
+                self.wfile.write(("pong %s\n" % linha[4:]).encode())
+                self.wfile.flush()
+                continue
             aplicar_evento(linha)
 
 
