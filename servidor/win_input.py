@@ -219,6 +219,12 @@ if _WIN:
                 _touch_pronto = False
         return _touch_pronto
 
+    # Combinações aceitas pelo InjectTouchInput (outras dão ERRO 87):
+    T_DOWN = PF_DOWN | PF_INRANGE | PF_INCONTACT
+    T_MOVE = PF_UPDATE | PF_INRANGE | PF_INCONTACT
+    T_UP = PF_UP
+    _modo_mouse = {"ativo": False, "dedo": None}
+
     def _info_toque(pid, x, y, flags):
         t = POINTER_TOUCH_INFO()
         t.pointerInfo.pointerType = PT_TOUCH
@@ -227,66 +233,98 @@ if _WIN:
         t.pointerInfo.ptPixelLocation = POINT(x, y)
         t.touchFlags = 0
         t.touchMask = TOUCH_MASK_CONTACTAREA | TOUCH_MASK_ORIENTATION | TOUCH_MASK_PRESSURE
-        t.rcContact = RECT(x - 4, y - 4, x + 4, y + 4)
+        t.rcContact = RECT(x - 2, y - 2, x + 2, y + 2)
         t.orientation = 90
-        t.pressure = 32000
+        t.pressure = 512  # faixa válida: 0..1024
         return t
 
     def _injetar_toques(lista):
         if not lista:
-            return
+            return True
         arr = (POINTER_TOUCH_INFO * len(lista))(*lista)
-        if not user32.InjectTouchInput(len(lista), arr):
-            # Erro de sequência (ex.: toque perdido): limpa e segue.
-            _toques.clear()
+        if user32.InjectTouchInput(len(lista), arr):
+            return True
+        erro = ctypes.get_last_error()
+        print("[toque] Windows recusou o toque (erro %d)." % erro)
+        return False
+
+    def _virar_mouse(motivo):
+        if not _modo_mouse["ativo"]:
+            _modo_mouse["ativo"] = True
+            print("[toque] %s -> usando o toque como mouse." % motivo)
+
+    def _toque_como_mouse(acao, pid, x, y):
+        """Plano B: o 1º dedo vira o mouse (tocar = clicar, arrastar = arrastar)."""
+        dedo = _modo_mouse["dedo"]
+        if acao == "d" and dedo is None:
+            _modo_mouse["dedo"] = pid
+            left_down(x, y)
+        elif acao == "m" and dedo == pid:
+            move(x, y)
+        elif acao == "u" and dedo == pid:
+            move(x, y)
+            left_up(x, y)
+            _modo_mouse["dedo"] = None
 
     def touch(acao, pid, x, y):
         """acao: 'd' (encostou), 'm' (moveu), 'u' (soltou). Coords em pixels."""
-        if not _iniciar_toque():
-            return False
         pid = int(pid) % 10
-        lista = []
-        for oid, (ox, oy) in list(_toques.items()):
-            if oid == pid:
-                continue
-            lista.append(_info_toque(oid, ox, oy,
-                                     PF_UPDATE | PF_INRANGE | PF_INCONTACT | PF_CONFIDENCE))
+        if _modo_mouse["ativo"]:
+            _toque_como_mouse(acao, pid, x, y)
+            return True
+        if not _iniciar_toque():
+            _virar_mouse("Toque nativo indisponível neste Windows")
+            _toque_como_mouse(acao, pid, x, y)
+            return True
+        lista = [_info_toque(oid, ox, oy, T_MOVE)
+                 for oid, (ox, oy) in _toques.items() if oid != pid]
         if acao == "d":
             if pid in _toques:  # nunca recebeu o "u": solta antes
                 ox, oy = _toques.pop(pid)
-                _injetar_toques([_info_toque(pid, ox, oy, PF_UP)])
+                _injetar_toques([_info_toque(pid, ox, oy, T_UP)])
+                lista = [_info_toque(oid, ox2, oy2, T_MOVE)
+                         for oid, (ox2, oy2) in _toques.items()]
             _toques[pid] = (x, y)
-            f = PF_DOWN | PF_INRANGE | PF_INCONTACT | PF_NEW | PF_CONFIDENCE
+            f = T_DOWN
         elif acao == "m":
             if pid not in _toques:
                 return True
             _toques[pid] = (x, y)
-            f = PF_UPDATE | PF_INRANGE | PF_INCONTACT | PF_CONFIDENCE
+            f = T_MOVE
         else:
             if pid not in _toques:
                 return True
-            x, y = _toques.pop(pid)
-            f = PF_UP
-        if not lista and acao != "u":
-            f |= PF_PRIMARY
+            _toques.pop(pid)
+            f = T_UP
         lista.append(_info_toque(pid, x, y, f))
-        _injetar_toques(lista)
+        if not _injetar_toques(lista):
+            _toques.clear()
+            _virar_mouse("Toque nativo falhou")
+            if acao == "d":
+                _toque_como_mouse("d", pid, x, y)
         return True
 
     def touch_move_varios(pontos):
         """Atualiza vários dedos num único quadro: [(id, x, y), ...]."""
-        if not _iniciar_toque():
+        if _modo_mouse["ativo"]:
+            for pid, x, y in pontos:
+                _toque_como_mouse("m", int(pid) % 10, x, y)
+            return
+        if not _toques:
             return
         for pid, x, y in pontos:
             if int(pid) % 10 in _toques:
                 _toques[int(pid) % 10] = (x, y)
-        lista = [_info_toque(oid, ox, oy,
-                             PF_UPDATE | PF_INRANGE | PF_INCONTACT | PF_CONFIDENCE)
-                 for oid, (ox, oy) in _toques.items()]
-        _injetar_toques(lista)
+        lista = [_info_toque(oid, ox, oy, T_MOVE) for oid, (ox, oy) in _toques.items()]
+        if not _injetar_toques(lista):
+            _toques.clear()
+            _virar_mouse("Toque nativo falhou")
 
     def touch_reset():
-        lista = [_info_toque(oid, ox, oy, PF_UP) for oid, (ox, oy) in _toques.items()]
+        if _modo_mouse["dedo"] is not None:
+            _modo_mouse["dedo"] = None
+            _send(_mi(0, 0, MOUSEEVENTF_LEFTUP))
+        lista = [_info_toque(oid, ox, oy, T_UP) for oid, (ox, oy) in _toques.items()]
         _toques.clear()
         if lista and _touch_pronto:
             arr = (POINTER_TOUCH_INFO * len(lista))(*lista)
@@ -310,6 +348,7 @@ if _WIN:
         """estado: h (pairando), d (encostou), m (arrastando), u (levantou),
         x (saiu do alcance). pressao 0..1, tilt em graus, botoes: bit0 lateral,
         bit1 borracha."""
+        global _caneta
         dev = _iniciar_caneta()
         if not dev:
             # Sem caneta sintética: vira mouse.
@@ -334,7 +373,7 @@ if _WIN:
         p.tiltX = max(-90, min(90, int(tilt_x)))
         p.tiltY = max(-90, min(90, int(tilt_y)))
         contato = _caneta_estado["contato"]
-        botao = PF_SECONDBUTTON if (lateral and not borracha) else PF_FIRSTBUTTON
+        botao = 0  # botão lateral vai em penFlags (BARREL)
         flags = PF_UPDATE | PF_INRANGE
         if estado == "d":
             if contato:
@@ -366,7 +405,14 @@ if _WIN:
             flags = PF_UPDATE
         p.pointerInfo.pointerFlags = flags
         p.pressure = int(max(0.0, min(1.0, pressao)) * 1024) if flags & PF_INCONTACT else 0
-        user32.InjectSyntheticPointerInput(dev, ctypes.byref(info), 1)
+        ok = user32.InjectSyntheticPointerInput(dev, ctypes.byref(info), 1)
+        if not ok and estado != "x":  # saída do alcance pode falhar sem problema
+            print("[caneta] Windows recusou a caneta (erro %d) -> usando como mouse."
+                  % ctypes.get_last_error())
+            _caneta = 0
+            _caneta_estado["contato"] = False
+            if estado == "d":
+                left_down(x, y)
 
 else:
     # Stubs para testes fora do Windows.
