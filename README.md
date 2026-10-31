@@ -16,11 +16,17 @@ Transforma o tablet ou celular Android num **monitor de verdade** para o PC com 
 | Barra de atalhos | Ctrl/Shift/Alt fixos (para usar com a caneta), desfazer, refazer, copiar, colar, salvar, Esc, Iniciar, Alt+Tab, zoom e mais. |
 | Teclado | Teclado físico do tablet (Book Cover, Bluetooth) vira teclado do PC; teclado da tela também. |
 | Conexão | Descoberta automática na rede; cabo USB com `adb reverse` automático. PIN opcional. |
+| Ajustes ao vivo | Dá para mudar fps, bitrate, codec e qualidade com a tela aberta. A imagem reinicia só quando uma opção de vídeo muda. |
+| Touchpad e mesa | Modo touchpad (o dedo arrasta o cursor, toque = clique, dois dedos = rolagem) e modo mesa digitalizadora (só a caneta). |
+| Girar o tablet | No automático, a transmissão acompanha a nova orientação. |
+| Teste de rede | Mede o atraso até o PC e sugere o perfil que combina com a rede. |
+| Painel rápido | Botão do Android que conecta direto no último PC. |
+| Bandeja do Windows | Ícone com status, desligar a tela estendida e sair. |
 
 ## Instalação
 
-1. **PC (Windows 10 1809+ ou 11):** baixe `SegundaTela-Instalador.exe` na release **servidor-v3.0** e instale. O instalador instala o monitor virtual, libera o Firewall e cria os atalhos.
-2. **Tablet:** instale `segunda-tela.apk` da release **v3.0**.
+1. **PC (Windows 10 1809+ ou 11):** baixe `SegundaTela-Instalador.exe` na release **servidor-v3.0** (ou a mais recente) e instale. O instalador instala o monitor virtual, libera o Firewall e cria os atalhos.
+2. **Tablet:** instale `segunda-tela.apk` da release mais recente: https://github.com/parceiros-beep/segunda-tela/releases/latest
 3. Abra o Segunda Tela no PC e no tablet, na mesma rede Wi‑Fi, e toque no computador que aparecer.
 
 **Pelo cabo USB (mais rápido):** ative *Opções do desenvolvedor › Depuração USB* no tablet, plugue no PC com o servidor aberto, aceite o aviso no tablet e toque em *Conectar pelo cabo USB*.
