@@ -1,26 +1,39 @@
 # Segunda Tela
 
-App Android + servidor PC: use o tablet/celular como segunda tela via Wi-Fi ou cabo.
+Transforma o tablet ou celular Android num **monitor de verdade** para o PC com Windows: estender ou espelhar, por Wi‑Fi ou cabo USB, com toque e caneta.
 
-## Servidor do PC (Windows)
+## Recursos
 
-Baixe `SegundaTela-Servidor.exe` na release **servidor-v1.0** e abra. A janela mostra o IP para digitar no app (ou o app encontra o PC sozinho na rede).
+| Recurso | Como funciona |
+|---|---|
+| **Tela estendida real** | O servidor cria um monitor virtual do tamanho exato do tablet. O driver (Virtual Display Driver, código aberto e assinado) é instalado pelo instalador; o monitor aparece ao conectar e some ao desconectar. |
+| Espelhar | Mostra a tela principal do PC. |
+| Posição | À esquerda, à direita ou acima do monitor do PC. |
+| Resolução e escala | Máxima (nativa do tablet), Alta, Equilibrada, Desempenho. A escala do Windows (100%–300%) é ajustada sozinha para os itens não ficarem minúsculos. |
+| Vídeo fluido | H.264 com o encoder da placa de vídeo (NVIDIA NVENC, AMD AMF, Intel QuickSync; CPU se não houver), até 60 fps, decodificação por hardware no tablet. Modo compatível MJPEG opcional. |
+| Toque do Windows | Multitoque nativo: tocar, arrastar, pinça para zoom, rolar com dois dedos, segurar para menu. Ou modo mouse. |
+| Caneta (S Pen) | Pressão, inclinação, botão lateral e borracha, como uma mesa digitalizadora. Rejeição da palma automática com a caneta perto da tela. |
+| Barra de atalhos | Ctrl/Shift/Alt fixos (para usar com a caneta), desfazer, refazer, copiar, colar, salvar, Esc, Iniciar, Alt+Tab, zoom e mais. |
+| Teclado | Teclado físico do tablet (Book Cover, Bluetooth) vira teclado do PC; teclado da tela também. |
+| Conexão | Descoberta automática na rede; cabo USB com `adb reverse` automático. PIN opcional. |
+
+## Instalação
+
+1. **PC (Windows 10 1809+ ou 11):** baixe `SegundaTela-Instalador.exe` na release **servidor-v3.0** e instale. O instalador instala o monitor virtual, libera o Firewall e cria os atalhos.
+2. **Tablet:** instale `segunda-tela.apk` da release **v3.0**.
+3. Abra o Segunda Tela no PC e no tablet, na mesma rede Wi‑Fi, e toque no computador que aparecer.
+
+**Pelo cabo USB (mais rápido):** ative *Opções do desenvolvedor › Depuração USB* no tablet, plugue no PC com o servidor aberto, aceite o aviso no tablet e toque em *Conectar pelo cabo USB*.
+
+## Servidor
 
 - Porta e PIN: `SegundaTela-Servidor.exe --porta 8080 --pin 1234`
-- Modo USB: `adb reverse tcp:8080 tcp:8080` e toque em "Modo USB" no app.
-- Na primeira vez, permita o acesso no aviso do Firewall do Windows.
+- Abrir com o Windows: `SegundaTela-Servidor.exe --iniciar-com-windows sim`
+- Remover o monitor virtual: `SegundaTela-Servidor.exe --desinstalar-driver`
 
-O .exe é gerado pelo workflow `build-exe.yml` a cada alteração em `servidor/` (ou manualmente em Actions).
+O console mostra o que está acontecendo: monitor virtual criado (nome, resolução, posição), encoder de vídeo usado e conexões. Se algo falhar, copie essas linhas.
 
-## Tela estendida — passo a passo
+## Desenvolvimento
 
-A tela estendida transmite um **segundo monitor** do PC. O Windows não tem monitor virtual nativo, então é preciso ter um 2º monitor de alguma forma:
-
-1. **Já tem 2 monitores?** Abra o servidor e marque "tela estendida" no app. Se a imagem estiver duplicada, o servidor força o modo **Estender** automaticamente.
-2. **Só tem 1 monitor?** Escolha uma opção, uma única vez:
-   - um monitor comum ou um **dummy HDMI** (plugue barato), ou
-   - o **driver de monitor virtual gratuito**: https://github.com/VirtualDrivers/Virtual-Display-Driver/releases — baixe o instalador oficial, instale como administrador e reinicie se pedir.
-3. Confira em **Configurações do Windows → Tela**: devem aparecer 2 telas e o modo **"Estender estas telas"** (não "Duplicar"). Atalho: tecla **Win+P → Estender**.
-4. No console do servidor aparece "Monitores detectados: N". Com N ≥ 2, a tela estendida funciona.
-
-Enquanto houver só 1 monitor, o app espelha a tela principal.
+- `servidor/`: servidor Python (gerado como instalador pelo workflow `build-exe.yml`, que embute ffmpeg, o driver, nefcon e adb).
+- `android/`: app Android em Kotlin (APK gerado pelo workflow `build.yml`).

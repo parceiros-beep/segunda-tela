@@ -1,0 +1,54 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.segundatela.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.segundatela.app"
+        minSdk 26
+        targetSdk 34
+        versionCode 4
+        versionName "3.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(project.findProperty('ST_STORE_FILE') ?: '../keystore/segunda-tela.jks')
+            storePassword project.findProperty('ST_STORE_PASSWORD') ?: 'segundatela123'
+            keyAlias project.findProperty('ST_KEY_ALIAS') ?: 'segundatela'
+            keyPassword project.findProperty('ST_KEY_PASSWORD') ?: 'segundatela123'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+}

@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Vídeo H.264 (padrão) -->
+    <com.segundatela.app.H264View
+        android:id="@+id/h264"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center" />
+
+    <!-- Vídeo MJPEG (modo compatível) -->
+    <com.segundatela.app.MjpegView
+        android:id="@+id/mjpeg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Campo invisível que recebe o teclado do Android para digitar no PC -->
+    <EditText
+        android:id="@+id/hiddenInput"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:alpha="0"
+        android:background="@null"
+        android:importantForAutofill="no"
+        android:inputType="textMultiLine|textNoSuggestions" />
+
+    <!-- Barra lateral de atalhos (preenchida no código) -->
+    <LinearLayout
+        android:id="@+id/sidebarWrap"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="horizontal">
+
+        <ScrollView
+            android:id="@+id/sidebarScroll"
+            android:layout_width="64dp"
+            android:layout_height="match_parent"
+            android:background="#E6101318"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/sidebar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingVertical="8dp" />
+        </ScrollView>
+
+        <!-- Puxador para esconder/mostrar a barra -->
+        <TextView
+            android:id="@+id/sidebarHandle"
+            android:layout_width="18dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center_vertical"
+            android:background="@drawable/handle_bg"
+            android:gravity="center"
+            android:text="‹"
+            android:textColor="#CCFFFFFF"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- Status (aparece por alguns segundos ao conectar) -->
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="18dp"
+        android:background="@drawable/status_pill"
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="9dp"
+        android:textColor="#FFFFFF"
+        android:textSize="13sp" />
+
+    <!-- Botão de menu, discreto no canto -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSettings"
+        style="@style/Widget.MaterialComponents.Button"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="10dp"
+        android:alpha="0.6"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:padding="0dp"
+        android:text="⋯"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        app:backgroundTint="#99000000"
+        app:cornerRadius="20dp"
+        app:rippleColor="#33FFFFFF" />
+
+    <!-- Fundo escuro atrás do menu -->
+    <View
+        android:id="@+id/scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#99000000"
+        android:visibility="gone" />
+
+    <!-- Menu -->
+    <LinearLayout
+        android:id="@+id/settingsPanel"
+        android:layout_width="380dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/sheet_bg"
+        android:orientation="vertical"
+        android:padding="22dp"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="14dp"
+            android:background="@drawable/grabber" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:id="@+id/lblInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="14dp"
+            android:textColor="@color/text_muted"
+            android:textSize="13sp" />
+
+        <TextView
+            style="@style/Label.Section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:text="@string/sec_touch" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/grpToque"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            app:singleSelection="true"
+            app:selectionRequired="true" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swBarra"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/opt_sidebar"
+            android:textColor="@color/text_primary" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swPalma"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/opt_palm"
+            android:textColor="@color/text_primary" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnKeyboard"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:text="@string/open_keyboard"
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            app:cornerRadius="26dp"
+            app:strokeColor="@color/stroke" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDisconnect"
+            style="@style/Btn.Primary"
+            android:layout_width="match_parent"
+            android:layout_marginTop="10dp"
+            android:text="@string/disconnect" />
+    </LinearLayout>
+</FrameLayout>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Segunda Tela</string>
+    <string name="tagline">Seu tablet como segundo monitor do PC</string>
+
+    <!-- Conectar -->
+    <string name="discovered">Computadores</string>
+    <string name="searching">Procurando computadores com o Segunda Tela aberto…</string>
+    <string name="pc_item">🖥  %1$s\n%2$s</string>
+    <string name="hint_host">IP do computador</string>
+    <string name="connect">Conectar</string>
+    <string name="btn_usb">Conectar pelo cabo USB</string>
+    <string name="btn_usb_ready">✓ Cabo USB detectado: conectar</string>
+    <string name="usb_help">Cabo USB: ative a Depuração USB no tablet (Opções do desenvolvedor), plugue no PC com o Segunda Tela aberto e aceite o aviso no tablet.</string>
+    <string name="err_host">Informe o IP do computador</string>
+
+    <!-- Seções -->
+    <string name="sec_display">Tela</string>
+    <string name="sec_touch">Toque e caneta</string>
+    <string name="advanced">Avançado</string>
+    <string name="hint_port">Porta</string>
+    <string name="hint_pin">PIN (opcional)</string>
+
+    <!-- Opções de tela -->
+    <string name="opt_mode">Modo</string>
+    <string name="mode_extend">Estender (2º monitor)</string>
+    <string name="mode_mirror">Espelhar</string>
+    <string name="opt_side">Posição em relação ao monitor do PC</string>
+    <string name="side_left">À esquerda</string>
+    <string name="side_right">À direita</string>
+    <string name="side_top">Acima</string>
+    <string name="opt_resolution">Resolução</string>
+    <string name="res_max">Máxima</string>
+    <string name="res_high">Alta</string>
+    <string name="res_balanced">Equilibrada</string>
+    <string name="res_fast">Desempenho</string>
+    <string name="opt_scale">Tamanho dos itens (escala do Windows)</string>
+    <string name="auto">Automático</string>
+    <string name="fps">Quadros por segundo</string>
+    <string name="opt_quality">Qualidade da imagem</string>
+    <string name="q_low">Econômica</string>
+    <string name="q_mid">Boa</string>
+    <string name="q_high">Alta</string>
+    <string name="q_max">Máxima</string>
+    <string name="opt_orientation">Orientação</string>
+    <string name="or_auto">Como estiver</string>
+    <string name="or_landscape">Horizontal</string>
+    <string name="or_portrait">Vertical</string>
+
+    <!-- Toque e caneta -->
+    <string name="opt_touch">Toque na tela</string>
+    <string name="touch_native">Toque do Windows</string>
+    <string name="touch_mouse">Mouse</string>
+    <string name="touch_off">Desligado</string>
+    <string name="opt_pen">S Pen com pressão e inclinação</string>
+    <string name="opt_palm">Só a caneta (ignorar dedos e palma)</string>
+    <string name="opt_sidebar">Barra lateral de atalhos</string>
+
+    <!-- Avançado -->
+    <string name="opt_compat">Modo compatível (sem vídeo H.264)</string>
+    <string name="opt_autoconnect">Conectar sozinho ao abrir o app</string>
+
+    <!-- Visualizador -->
+    <string name="connecting">• Conectando…</string>
+    <string name="connected_compat">Modo compatível</string>
+    <string name="reconnecting">• Reconectando… (%1$s)</string>
+    <string name="open_keyboard">⌨  Abrir teclado</string>
+    <string name="disconnect">Desconectar</string>
+
+    <string name="help">Como usar: abra o Segunda Tela no computador (instalador do Windows), deixe PC e tablet na mesma rede Wi‑Fi e toque no computador que aparecer acima. Pelo cabo USB a imagem fica mais rápida.\n\nNo modo Estender, o Windows ganha um monitor novo do tamanho do tablet: arraste janelas para ele. A posição e a escala também podem ser ajustadas em Configurações › Sistema › Tela no PC.</string>
+</resources>

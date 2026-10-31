@@ -1,4 +1,4 @@
-name: Build servidor Windows (.exe)
+name: Build servidor Windows (instalador)
 on:
   push:
     paths:
@@ -17,19 +17,85 @@ jobs:
           python-version: '3.12'
       - name: Instalar dependências
         run: pip install mss pillow zeroconf pyinstaller
-      - name: Gerar .exe
+
+      - name: Baixar componentes (ffmpeg, monitor virtual, nefcon, adb)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $h = @{ Authorization = "Bearer $env:GH_TOKEN"; 'User-Agent' = 'segunda-tela' }
+          New-Item -ItemType Directory -Force dl, extras\drivers, extras\adb | Out-Null
+
+          # ffmpeg (ddagrab + NVENC/AMF/QSV/x264)
+          Invoke-WebRequest https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip -OutFile dl\ffmpeg.zip
+          Expand-Archive dl\ffmpeg.zip dl\ffmpeg
+          Copy-Item (Get-ChildItem dl\ffmpeg -Recurse -Filter ffmpeg.exe | Select-Object -First 1).FullName extras\ffmpeg.exe
+
+          # Virtual Display Driver (MIT, assinado)
+          $rel = Invoke-RestMethod -Headers $h https://api.github.com/repos/VirtualDrivers/Virtual-Display-Driver/releases/tags/25.7.23
+          $asset = $rel.assets | Where-Object { $_.name -match 'Driver\.Only' -and $_.name -notmatch 'arm' } | Select-Object -First 1
+          if (-not $asset) { $rel.assets | ForEach-Object { $_.name }; throw 'Driver nao encontrado' }
+          Write-Host "Driver: $($asset.name)"
+          Invoke-WebRequest $asset.browser_download_url -OutFile dl\vdd.zip
+          Expand-Archive dl\vdd.zip dl\vdd
+          $inf = Get-ChildItem dl\vdd -Recurse -Filter MttVDD.inf | Select-Object -First 1
+          if (-not $inf) { throw 'MttVDD.inf nao encontrado' }
+          Get-ChildItem $inf.DirectoryName -File | Copy-Item -Destination extras\drivers
+
+          # nefcon (instalador de driver silencioso)
+          Invoke-WebRequest https://github.com/nefarius/nefcon/releases/download/v1.14.0/nefcon_v1.14.0.zip -OutFile dl\nefcon.zip
+          Expand-Archive dl\nefcon.zip dl\nefcon
+          Copy-Item (Get-ChildItem dl\nefcon -Recurse -Filter nefconw.exe | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1).FullName extras\drivers\nefconw.exe
+
+          # adb (modo USB automático)
+          Invoke-WebRequest https://dl.google.com/android/repository/platform-tools-latest-windows.zip -OutFile dl\pt.zip
+          Expand-Archive dl\pt.zip dl\pt
+          Copy-Item dl\pt\platform-tools\adb.exe, dl\pt\platform-tools\AdbWinApi.dll, dl\pt\platform-tools\AdbWinUsbApi.dll extras\adb
+
+          Get-ChildItem extras -Recurse | Format-Table FullName, Length
+
+      - name: Gerar executável
         run: >
-          pyinstaller --onefile --console --name SegundaTela-Servidor
+          pyinstaller --onedir --console --noconfirm --name SegundaTela-Servidor
           --collect-submodules zeroconf
+          --add-binary "extras/ffmpeg.exe;."
+          --add-data "extras/drivers;drivers"
+          --add-data "extras/adb;adb"
           servidor/segunda_tela_servidor.py
+
+      - name: Teste rápido do executável
+        shell: pwsh
+        run: |
+          & dist\SegundaTela-Servidor\SegundaTela-Servidor.exe --help
+          if ($LASTEXITCODE -ne 0) { throw 'executavel falhou' }
+
+      - name: Gerar instalador
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; }
+          & $iscc servidor\instalador.iss
+          if ($LASTEXITCODE -ne 0) { throw 'ISCC falhou' }
+          Compress-Archive dist\SegundaTela-Servidor\* dist\SegundaTela-Servidor-portatil.zip
+
       - uses: actions/upload-artifact@v4
         with:
-          name: segunda-tela-servidor-exe
-          path: dist/SegundaTela-Servidor.exe
+          name: segunda-tela-servidor
+          path: |
+            dist/SegundaTela-Instalador.exe
+            dist/SegundaTela-Servidor-portatil.zip
           if-no-files-found: error
+
       - name: Publicar release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: servidor-v1.0
-          name: Segunda Tela - Servidor Windows
-          files: dist/SegundaTela-Servidor.exe
+          tag_name: servidor-v3.0
+          name: Segunda Tela 3.0 - Servidor Windows
+          body: |
+            Baixe e rode **SegundaTela-Instalador.exe**. O instalador já instala o monitor virtual (tela estendida), libera o Firewall e cria os atalhos.
+            Versão sem instalação: SegundaTela-Servidor-portatil.zip.
+          files: |
+            dist/SegundaTela-Instalador.exe
+            dist/SegundaTela-Servidor-portatil.zip
