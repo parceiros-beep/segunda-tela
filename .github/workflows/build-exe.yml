@@ -29,7 +29,12 @@ jobs:
           New-Item -ItemType Directory -Force dl, extras\drivers, extras\adb | Out-Null
 
           # ffmpeg (ddagrab + NVENC/AMF/QSV/x264)
-          Invoke-WebRequest https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip -OutFile dl\ffmpeg.zip
+          $ff = Invoke-RestMethod -Headers $h https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest
+          $ffa = $ff.assets | Where-Object { $_.name -match 'win64-gpl(-\d[\d.]*)?\.zip$' -and $_.name -notmatch 'shared' } |
+                 Sort-Object { if ($_.name -match '^ffmpeg-n') { 0 } else { 1 } } | Select-Object -First 1
+          if (-not $ffa) { $ff.assets | ForEach-Object { $_.name }; throw 'ffmpeg nao encontrado' }
+          Write-Host "ffmpeg: $($ffa.name)"
+          Invoke-WebRequest $ffa.browser_download_url -OutFile dl\ffmpeg.zip
           Expand-Archive dl\ffmpeg.zip dl\ffmpeg
           Copy-Item (Get-ChildItem dl\ffmpeg -Recurse -Filter ffmpeg.exe | Select-Object -First 1).FullName extras\ffmpeg.exe
 
