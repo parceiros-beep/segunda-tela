@@ -101,8 +101,8 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         escolha(v, R.string.opt_codec, listOf(
             "h264" to getString(R.string.codec_h264),
             "h265" to getString(R.string.codec_h265)), aj.codec) { aj.codec = it; personalizado() }
-        escolha(v, R.string.fps, listOf(30, 60, 90, 120).map { it.toString() to "$it fps" },
-            aj.fps.toString()) { aj.fps = it.toInt(); personalizado() }
+        deslizante(v, R.string.fps, 10f, 60f, 1f, aj.fps.toFloat(),
+            { x -> "${x.toInt()} fps" }) { aj.fps = it.toInt(); personalizado() }
         dica(v, R.string.fps_hint)
         deslizante(v, R.string.opt_bitrate, 0f, 150f, 1f, aj.mbps.toFloat(),
             { x -> if (x < 1f) getString(R.string.bitrate_auto) else "${x.toInt()} Mbps" }) {

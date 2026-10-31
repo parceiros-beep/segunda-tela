@@ -33,7 +33,7 @@ class Opcoes:
 
     def __init__(self, fps=60, kbps=20000, codec="h264", taxa="cbr", cq=23,
                  vel="rapida", gop=2.0, intra=False, cursor=True):
-        self.fps = fps
+        self.fps = max(10, min(60, int(fps)))
         self.kbps = kbps
         self.codec = codec if codec in ("h264", "h265") else "h264"
         self.taxa = taxa if taxa in ("cbr", "vbr", "cq") else "cbr"

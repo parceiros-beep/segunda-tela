@@ -86,7 +86,7 @@
     <string name="opt_codec">Codec</string>
     <string name="codec_h264">H.264 (mais compatível)</string>
     <string name="codec_h265">H.265 (mais nítido, menos dados)</string>
-    <string name="fps_hint">90 e 120 fps precisam de placa de vídeo forte e rede rápida (ideal: cabo USB ou Wi‑Fi 5/6 GHz).</string>
+    <string name="fps_hint">Escolha qualquer valor de 10 a 60. Mais fps deixa o movimento mais suave, mas exige mais do Wi‑Fi e do PC.</string>
     <string name="opt_bitrate">Bitrate</string>
     <string name="bitrate_auto">Automático</string>
     <string name="opt_rate">Controle de taxa</string>

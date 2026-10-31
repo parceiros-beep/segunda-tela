@@ -128,14 +128,13 @@ def preparar_tela(qs):
         modo = "estender"
     w = numero(qs, "w", 1920, int, 320, 7680) // 2 * 2
     h = numero(qs, "h", 1080, int, 240, 4320) // 2 * 2
-    fps = numero(qs, "fps", 60, int, 10, 120)
     lado = qs.get("lado", ["direita"])[0]
     mon = None
     if modo != "estender" and Controle.extendido:
         Controle.extendido = False
         tela_virtual.desativar()
     if modo == "estender":
-        mon = tela_virtual.ativar(w, h, 60 if fps <= 60 else fps, lado)
+        mon = tela_virtual.ativar(w, h, 60, lado)
         if mon is None:
             print("[tela estendida] Indisponível agora; espelhando a tela principal.")
         else:
@@ -199,7 +198,7 @@ class Handler(BaseHTTPRequestHandler):
         geracao = Controle.nova()
         txt = lambda nome, padrao: qs.get(nome, [padrao])[0]
         opcoes = video.Opcoes(
-            fps=numero(qs, "fps", 60, int, 10, 120),
+            fps=numero(qs, "fps", 60, int, 10, 60),
             kbps=numero(qs, "kbps", 20000, int, 500, 150000),
             codec=txt("codec", "h264"), taxa=txt("taxa", "cbr"),
             cq=numero(qs, "cq", 23, int, 10, 51), vel=txt("vel", "rapida"),
