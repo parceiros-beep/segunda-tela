@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.SegundaTela" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="colorControlActivated">@color/accent</item>
+        <item name="android:windowLightNavigationBar">true</item>
         <item name="colorPrimary">@color/accent</item>
         <item name="colorPrimaryVariant">@color/accent_dark</item>
         <item name="colorOnPrimary">@color/on_accent</item>
@@ -10,22 +13,23 @@
         <item name="android:windowBackground">@color/bg</item>
         <item name="android:statusBarColor">@color/bg</item>
         <item name="android:navigationBarColor">@color/bg</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
     <style name="Theme.SegundaTela.Fullscreen" parent="Theme.SegundaTela">
         <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowBackground">@android:color/black</item>
     </style>
 
     <!-- Cartão de seção (cantos bem arredondados, estilo One UI) -->
     <style name="Card.Section" parent="Widget.MaterialComponents.CardView">
         <item name="cardBackgroundColor">@color/surface</item>
-        <item name="cardCornerRadius">28dp</item>
+        <item name="cardCornerRadius">26dp</item>
         <item name="cardElevation">0dp</item>
-        <item name="strokeColor">@color/stroke</item>
-        <item name="strokeWidth">1dp</item>
-        <item name="contentPadding">22dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="contentPadding">0dp</item>
     </style>
 
     <!-- Botão principal em pílula -->
@@ -40,11 +44,14 @@
         <item name="android:letterSpacing">0</item>
     </style>
 
+    <!-- Cabeçalho de grupo (fora do cartão), como nos Ajustes do One UI -->
     <style name="Label.Section" parent="">
         <item name="android:textColor">@color/text_muted</item>
-        <item name="android:textSize">12sp</item>
-        <item name="android:letterSpacing">0.06</item>
-        <item name="android:textAllCaps">true</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingTop">18dp</item>
+        <item name="android:paddingBottom">8dp</item>
     </style>
 
     <!-- Botão da barra de atalhos do visualizador -->

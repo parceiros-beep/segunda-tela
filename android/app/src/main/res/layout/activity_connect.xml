@@ -9,81 +9,176 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
         android:orientation="vertical"
-        android:paddingHorizontal="20dp"
-        android:paddingTop="40dp"
+        android:paddingHorizontal="12dp"
         android:paddingBottom="32dp">
 
+        <!-- Área de visualização (cabeçalho grande do One UI) -->
+        <LinearLayout
+            android:id="@+id/header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:minHeight="260dp"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="@color/text_primary"
+                android:textSize="38sp" />
+
+            <TextView
+                android:id="@+id/lblNet"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:text="@string/tagline"
+                android:textColor="@color/text_muted"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <!-- Computadores -->
         <TextView
+            style="@style/Label.Section"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-light"
-            android:text="@string/app_name"
-            android:textColor="@color/text_primary"
-            android:textSize="38sp" />
+            android:text="@string/discovered" />
 
-        <TextView
-            android:id="@+id/lblNet"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="22dp"
-            android:text="@string/tagline"
-            android:textColor="@color/text_muted"
-            android:textSize="15sp" />
-
-        <!-- Conectar -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Card.Section"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp">
+            android:layout_height="wrap_content">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:paddingVertical="6dp">
 
-                <TextView
-                    style="@style/Label.Section"
-                    android:layout_width="wrap_content"
+                <!-- Procurando… -->
+                <LinearLayout
+                    android:id="@+id/rowSearching"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/discovered" />
+                    android:gravity="center_vertical"
+                    android:minHeight="64dp"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="20dp">
 
-                <TextView
-                    android:id="@+id/lblSearching"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="@string/searching"
-                    android:textColor="@color/text_muted"
-                    android:textSize="14sp" />
+                    <ProgressBar
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:indeterminateTint="@color/accent" />
 
+                    <TextView
+                        android:id="@+id/lblSearching"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:text="@string/searching"
+                        android:textColor="@color/text_muted"
+                        android:textSize="15sp" />
+                </LinearLayout>
+
+                <!-- PCs encontrados (linhas criadas no código) -->
                 <LinearLayout
                     android:id="@+id/listPcs"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
                     android:orientation="vertical" />
 
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginHorizontal="20dp"
+                    android:background="@color/divider" />
+
+                <!-- Cabo USB -->
+                <LinearLayout
+                    android:id="@+id/btnUsb"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/row_bg"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:minHeight="72dp"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="12dp">
+
+                    <ImageView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/icon_circle"
+                        android:contentDescription="@null"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_usb" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/usb_title"
+                            android:textColor="@color/text_primary"
+                            android:textSize="17sp" />
+
+                        <TextView
+                            android:id="@+id/lblUsb"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/usb_off"
+                            android:textColor="@color/text_muted"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_chevron" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginHorizontal="20dp"
+                    android:background="@color/divider" />
+
+                <!-- IP manual -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="14dp">
 
                     <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:hint="@string/hint_host"
+                        app:boxBackgroundColor="@color/surface_variant"
                         app:boxCornerRadiusBottomEnd="16dp"
                         app:boxCornerRadiusBottomStart="16dp"
                         app:boxCornerRadiusTopEnd="16dp"
-                        app:boxCornerRadiusTopStart="16dp">
+                        app:boxCornerRadiusTopStart="16dp"
+                        app:boxStrokeWidth="0dp"
+                        app:boxStrokeWidthFocused="0dp">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/editHost"
@@ -98,120 +193,115 @@
                         android:id="@+id/btnConnect"
                         style="@style/Btn.Primary"
                         android:layout_width="wrap_content"
-                        android:layout_marginStart="10dp"
-                        android:layout_marginTop="4dp"
-                        android:paddingHorizontal="26dp"
-                        android:text="@string/connect" />
+                        android:layout_height="52dp"
+                        android:layout_marginStart="12dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:paddingHorizontal="24dp"
+                        android:text="@string/connect"
+                        app:cornerRadius="26dp" />
                 </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnUsb"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:layout_marginTop="10dp"
-                    android:text="@string/btn_usb"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    app:cornerRadius="26dp"
-                    app:strokeColor="@color/stroke" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <!-- Tela -->
+        <TextView
+            style="@style/Label.Section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sec_display" />
+
         <com.google.android.material.card.MaterialCardView
             style="@style/Card.Section"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp">
+            android:layout_height="wrap_content">
 
             <LinearLayout
                 android:id="@+id/grpTela"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/Label.Section"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/sec_display" />
-            </LinearLayout>
+                android:orientation="vertical"
+                android:paddingVertical="6dp" />
         </com.google.android.material.card.MaterialCardView>
 
         <!-- Vídeo e desempenho -->
+        <TextView
+            style="@style/Label.Section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sec_video" />
+
         <com.google.android.material.card.MaterialCardView
             style="@style/Card.Section"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp">
+            android:layout_height="wrap_content">
 
             <LinearLayout
                 android:id="@+id/grpVideo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/Label.Section"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/sec_video" />
-            </LinearLayout>
+                android:orientation="vertical"
+                android:paddingVertical="6dp" />
         </com.google.android.material.card.MaterialCardView>
 
         <!-- Toque e caneta -->
+        <TextView
+            style="@style/Label.Section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sec_touch" />
+
         <com.google.android.material.card.MaterialCardView
             style="@style/Card.Section"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp">
+            android:layout_height="wrap_content">
 
             <LinearLayout
                 android:id="@+id/grpToque"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/Label.Section"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/sec_touch" />
-            </LinearLayout>
+                android:orientation="vertical"
+                android:paddingVertical="6dp" />
         </com.google.android.material.card.MaterialCardView>
 
         <!-- Avançado -->
+        <TextView
+            style="@style/Label.Section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/advanced" />
+
         <com.google.android.material.card.MaterialCardView
             style="@style/Card.Section"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp">
+            android:layout_height="wrap_content">
 
             <LinearLayout
-                android:id="@+id/grpAvancado"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/Label.Section"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/advanced" />
+                android:orientation="vertical"
+                android:paddingVertical="6dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="12dp">
 
                     <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:hint="@string/hint_port">
+                        android:hint="@string/hint_port"
+                        app:boxBackgroundColor="@color/surface_variant"
+                        app:boxCornerRadiusBottomEnd="16dp"
+                        app:boxCornerRadiusBottomStart="16dp"
+                        app:boxCornerRadiusTopEnd="16dp"
+                        app:boxCornerRadiusTopStart="16dp"
+                        app:boxStrokeWidth="0dp"
+                        app:boxStrokeWidthFocused="0dp">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/editPort"
@@ -222,12 +312,19 @@
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="10dp"
+                        android:layout_marginStart="12dp"
                         android:layout_weight="1"
-                        android:hint="@string/hint_pin">
+                        android:hint="@string/hint_pin"
+                        app:boxBackgroundColor="@color/surface_variant"
+                        app:boxCornerRadiusBottomEnd="16dp"
+                        app:boxCornerRadiusBottomStart="16dp"
+                        app:boxCornerRadiusTopEnd="16dp"
+                        app:boxCornerRadiusTopStart="16dp"
+                        app:boxStrokeWidth="0dp"
+                        app:boxStrokeWidthFocused="0dp">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/editPin"
@@ -237,14 +334,21 @@
                             android:singleLine="true" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/grpAvancado"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="20dp"
             android:lineSpacingExtra="3dp"
+            android:paddingHorizontal="24dp"
             android:text="@string/help"
             android:textColor="@color/text_muted"
             android:textSize="13sp" />

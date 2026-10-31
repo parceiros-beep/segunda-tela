@@ -8,14 +8,11 @@ import android.os.Bundle
 import android.util.DisplayMetrics
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.chip.Chip
-import com.google.android.material.chip.ChipDrawable
-import com.google.android.material.chip.ChipGroup
 import com.google.android.material.slider.LabelFormatter
 import com.google.android.material.slider.Slider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -59,7 +56,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
     }
 
     // ============================================================== opções
-    private lateinit var grpPerfil: ChipGroup
+    private lateinit var lblPerfil: TextView
 
     private fun montarOpcoes() {
         // ---------------- Tela
@@ -89,7 +86,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
 
         // ---------------- Vídeo e desempenho
         val v = b.grpVideo
-        grpPerfil = escolha(v, R.string.opt_profile, listOf(
+        lblPerfil = escolha(v, R.string.opt_profile, listOf(
             "desenho" to getString(R.string.prof_draw),
             "trabalho" to getString(R.string.prof_work),
             "video" to getString(R.string.prof_video),
@@ -161,84 +158,115 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
     private fun personalizado() {
         if (aj.perfil == "personalizado") return
         aj.perfil = "personalizado"
-        for (i in 0 until grpPerfil.childCount) {
-            val c = grpPerfil.getChildAt(i) as Chip
-            if (c.tag == "personalizado") c.isChecked = true
-        }
+        if (::lblPerfil.isInitialized) lblPerfil.text = getString(R.string.prof_custom)
     }
 
     private fun par(v: Int) = v / 2 * 2
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-    private fun cabecalho(pai: LinearLayout, texto: String): TextView {
-        val d = resources.displayMetrics.density
-        val tv = TextView(this).apply {
-            text = texto
-            setTextColor(getColor(R.color.text_primary))
-            textSize = 15f
-            setPadding(0, (16 * d).toInt(), 0, (4 * d).toInt())
-        }
-        pai.addView(tv)
-        return tv
-    }
-
-    private fun dica(pai: LinearLayout, texto: Int) {
-        pai.addView(TextView(this).apply {
-            text = getString(texto)
-            setTextColor(getColor(R.color.text_muted))
-            textSize = 12.5f
-        })
-    }
-
-    private fun escolha(pai: LinearLayout, titulo: Int, itens: List<Pair<String, String>>,
-                        atual: String, aoMudar: (String) -> Unit): ChipGroup {
-        cabecalho(pai, getString(titulo))
-        val grupo = ChipGroup(this).apply {
-            isSingleSelection = true
-            isSelectionRequired = true
-        }
-        for ((valor, rotulo) in itens) {
-            grupo.addView(Chip(this).apply {
-                setChipDrawable(ChipDrawable.createFromAttributes(context, null, 0,
-                    com.google.android.material.R.style.Widget_MaterialComponents_Chip_Choice))
-                text = rotulo
-                tag = valor
-                isCheckable = true
-                isChecked = valor == atual
-                setOnClickListener { aoMudar(valor); aj.salvar(prefs) }
-            })
-        }
-        pai.addView(grupo)
-        return grupo
-    }
-
-    /** Controle deslizante com o valor escrito ao lado do título. */
-    private fun deslizante(pai: LinearLayout, titulo: Int, de: Float, ate: Float, passo: Float,
-                           atual: Float, rotulo: (Float) -> String, aoMudar: (Float) -> Unit) {
-        val nome = getString(titulo)
-        // O Slider exige valor alinhado ao passo e dentro da faixa.
-        val inicial = (de + Math.round((atual.coerceIn(de, ate) - de) / passo) * passo)
-            .coerceIn(de, ate)
-        val tv = cabecalho(pai, "$nome: ${rotulo(inicial)}")
-        pai.addView(Slider(this).apply {
-            valueFrom = de; valueTo = ate; stepSize = passo; value = inicial
-            labelBehavior = LabelFormatter.LABEL_GONE
-            addOnChangeListener { _, x, doUsuario ->
-                tv.text = "$nome: ${rotulo(x)}"
-                if (doUsuario) { aoMudar(x); aj.salvar(prefs) }
+    // ------------------------------------------------ linhas no estilo One UI
+    /** Divisória entre linhas do mesmo cartão (recuada nas laterais). */
+    private fun divisor(pai: LinearLayout) {
+        if (pai.childCount == 0) return
+        pai.addView(View(this).apply {
+            setBackgroundColor(getColor(R.color.divider))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+                marginStart = dp(20); marginEnd = dp(20)
             }
         })
     }
 
-    private fun chave(pai: LinearLayout, titulo: Int, atual: Boolean, aoMudar: (Boolean) -> Unit) {
-        val d = resources.displayMetrics.density
-        pai.addView(SwitchMaterial(this).apply {
-            text = getString(titulo)
-            setTextColor(getColor(R.color.text_primary))
-            textSize = 15f
-            isChecked = atual
-            minHeight = (52 * d).toInt()
-            setOnCheckedChangeListener { _, v -> aoMudar(v); aj.salvar(prefs) }
+    private fun texto(t: String, sp: Float, cor: Int) = TextView(this).apply {
+        text = t
+        textSize = sp
+        setTextColor(getColor(cor))
+    }
+
+    private fun linhaBase(pai: LinearLayout, vertical: Boolean): LinearLayout {
+        divisor(pai)
+        val row = LinearLayout(this).apply {
+            orientation = if (vertical) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            minimumHeight = dp(64)
+            setPadding(dp(20), dp(14), dp(20), dp(14))
+            setBackgroundResource(R.drawable.row_bg)
+        }
+        pai.addView(row)
+        return row
+    }
+
+    private fun dica(pai: LinearLayout, res: Int) {
+        pai.addView(texto(getString(res), 13f, R.color.text_muted).apply {
+            setPadding(dp(20), 0, dp(20), dp(12))
         })
+    }
+
+    /** Linha com o valor atual em azul; tocar abre a lista de opções. */
+    private fun escolha(pai: LinearLayout, titulo: Int, itens: List<Pair<String, String>>,
+                        atual: String, aoMudar: (String) -> Unit): TextView {
+        val row = linhaBase(pai, vertical = true)
+        row.gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START
+        var valor = atual
+        val nome = getString(titulo)
+        row.addView(texto(nome, 17f, R.color.text_primary))
+        val sub = texto(itens.firstOrNull { it.first == atual }?.second ?: "", 14f, R.color.accent)
+            .apply { setPadding(0, dp(2), 0, 0) }
+        row.addView(sub)
+        row.setOnClickListener {
+            val idx = itens.indexOfFirst { it.first == valor }
+            MaterialAlertDialogBuilder(this)
+                .setTitle(nome)
+                .setSingleChoiceItems(itens.map { it.second }.toTypedArray(), idx) { d, i ->
+                    valor = itens[i].first
+                    sub.text = itens[i].second
+                    aoMudar(valor)
+                    aj.salvar(prefs)
+                    d.dismiss()
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+        return sub
+    }
+
+    /** Linha com título, valor em azul e controle deslizante embaixo. */
+    private fun deslizante(pai: LinearLayout, titulo: Int, de: Float, ate: Float, passo: Float,
+                           atual: Float, rotulo: (Float) -> String, aoMudar: (Float) -> Unit) {
+        val row = linhaBase(pai, vertical = true)
+        row.background = null
+        // O Slider exige valor alinhado ao passo e dentro da faixa.
+        val inicial = (de + Math.round((atual.coerceIn(de, ate) - de) / passo) * passo)
+            .coerceIn(de, ate)
+        val topo = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        topo.addView(texto(getString(titulo), 17f, R.color.text_primary),
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val valor = texto(rotulo(inicial), 14f, R.color.accent)
+        topo.addView(valor)
+        row.addView(topo, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        row.addView(Slider(this).apply {
+            valueFrom = de; valueTo = ate; stepSize = passo; value = inicial
+            labelBehavior = LabelFormatter.LABEL_GONE
+            addOnChangeListener { _, x, doUsuario ->
+                valor.text = rotulo(x)
+                if (doUsuario) { aoMudar(x); aj.salvar(prefs) }
+            }
+        }, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+    }
+
+    /** Linha com interruptor à direita; tocar em qualquer lugar liga/desliga. */
+    private fun chave(pai: LinearLayout, titulo: Int, atual: Boolean, aoMudar: (Boolean) -> Unit) {
+        val row = linhaBase(pai, vertical = false)
+        row.addView(texto(getString(titulo), 17f, R.color.text_primary),
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val sw = SwitchMaterial(this).apply {
+            isChecked = atual
+            setOnCheckedChangeListener { _, v -> aoMudar(v); aj.salvar(prefs) }
+        }
+        row.addView(sw)
+        row.setOnClickListener { sw.toggle() }
     }
 
     // ====================================================== tamanho da tela
@@ -259,7 +287,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         super.onStart()
         seen.clear()
         b.listPcs.removeAllViews()
-        b.lblSearching.visibility = View.VISIBLE
+        b.rowSearching.visibility = View.VISIBLE
         discovery = NsdDiscovery(this).also { it.listener = this; it.start() }
         verificarUsb()
         b.lblNet.text = try { NetInfo.describe(NetInfo.read(this)) } catch (_: Exception) {
@@ -285,8 +313,8 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
             } catch (_: Exception) { false }
             usbOk = ok
             runOnUiThread {
-                b.btnUsb.text = getString(if (ok) R.string.btn_usb_ready else R.string.btn_usb)
-                if (ok) b.btnUsb.setTextColor(getColor(R.color.accent))
+                b.lblUsb.text = getString(if (ok) R.string.usb_on else R.string.usb_off)
+                b.lblUsb.setTextColor(getColor(if (ok) R.color.ok else R.color.text_muted))
             }
         }
     }
@@ -294,23 +322,36 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
     override fun onFound(device: NsdDiscovery.Device) {
         val key = "${device.host}:${device.port}"
         if (!seen.add(key)) return
-        b.lblSearching.visibility = View.GONE
-        val d = resources.displayMetrics.density
-        val item = MaterialButton(this, null,
-            com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = getString(R.string.pc_item, device.name, device.host)
-            setAllCaps(false)
-            textAlignment = View.TEXT_ALIGNMENT_VIEW_START
-            setTextColor(getColor(R.color.text_primary))
-            cornerRadius = (20 * d).toInt()
-            minHeight = (60 * d).toInt()
-            setOnClickListener {
-                b.editHost.setText(device.host)
-                if (device.port in 1..65535) b.editPort.setText(device.port.toString())
-                conectar(device.host)
-            }
+        b.rowSearching.visibility = View.GONE
+        val lista = b.listPcs
+        divisor(lista)
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            minimumHeight = dp(72)
+            setPadding(dp(20), dp(12), dp(20), dp(12))
+            setBackgroundResource(R.drawable.row_bg)
         }
-        b.listPcs.addView(item)
+        row.addView(ImageView(this).apply {
+            setImageResource(R.drawable.ic_monitor)
+            setBackgroundResource(R.drawable.icon_circle)
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        val textos = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), 0, 0, 0)
+        }
+        textos.addView(texto(device.name, 17f, R.color.text_primary))
+        textos.addView(texto(getString(R.string.pc_ready, device.host), 14f, R.color.text_muted))
+        row.addView(textos, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(ImageView(this).apply { setImageResource(R.drawable.ic_chevron) },
+            LinearLayout.LayoutParams(dp(24), dp(24)))
+        row.setOnClickListener {
+            b.editHost.setText(device.host)
+            if (device.port in 1..65535) b.editPort.setText(device.port.toString())
+            conectar(device.host)
+        }
+        lista.addView(row)
     }
 
     // ============================================================== conectar

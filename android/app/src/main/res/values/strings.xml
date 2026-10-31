@@ -114,4 +114,10 @@
     <string name="curve_linear">normal</string>
     <string name="opt_sidebar_side">Lado da barra de atalhos</string>
     <string name="opt_jpeg">Qualidade da imagem no modo compatível</string>
+    <!-- Interface One UI -->
+    <string name="cancel">Cancelar</string>
+    <string name="pc_ready">%1$s · toque para conectar</string>
+    <string name="usb_title">Cabo USB</string>
+    <string name="usb_on">Detectado · toque para conectar</string>
+    <string name="usb_off">Ative a Depuração USB e plugue o cabo</string>
 </resources>

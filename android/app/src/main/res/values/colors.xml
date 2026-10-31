@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Paleta no estilo One UI (tema claro). O escuro fica em values-night. -->
 <resources>
-    <color name="bg">#0A0C10</color>
-    <color name="surface">#15181F</color>
-    <color name="surface_variant">#1C2029</color>
-    <color name="stroke">#262B35</color>
-    <color name="text_primary">#F2F5FA</color>
-    <color name="text_muted">#9AA4B2</color>
-    <color name="accent">#3A82F7</color>
-    <color name="accent_dark">#2D6AD6</color>
+    <color name="bg">#F2F2F2</color>
+    <color name="surface">#FCFCFC</color>
+    <color name="surface_variant">#EDEDED</color>
+    <color name="stroke">#E3E3E3</color>
+    <color name="divider">#E6E6E6</color>
+    <color name="text_primary">#111111</color>
+    <color name="text_muted">#737373</color>
+    <color name="accent">#0381FE</color>
+    <color name="accent_dark">#0067D6</color>
+    <color name="accent_soft">#1A0381FE</color>
     <color name="on_accent">#FFFFFF</color>
+    <color name="ok">#1DAB61</color>
 </resources>
