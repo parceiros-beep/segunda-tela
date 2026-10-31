@@ -202,7 +202,7 @@ _XML = """<?xml version='1.0' encoding='utf-8'?>
         <ColourFormat>RGB</ColourFormat>
     </colour>
     <cursor>
-        <HardwareCursor>true</HardwareCursor>
+        <HardwareCursor>false</HardwareCursor>
         <CursorMaxX>128</CursorMaxX>
         <CursorMaxY>128</CursorMaxY>
         <AlphaCursorSupport>true</AlphaCursorSupport>
@@ -239,6 +239,16 @@ def _monitor_virtual(apenas_ativo=True):
     return None
 
 
+def _config_desatualizada():
+    """Instalações antigas usavam cursor por hardware: o cursor não entrava
+    na imagem capturada e sumia no tablet. Precisa regravar e recarregar."""
+    try:
+        with open(os.path.join(DIR_CONF, "vdd_settings.xml"), encoding="utf-8") as f:
+            return "<HardwareCursor>true" in f.read()
+    except OSError:
+        return False
+
+
 def ativar(w, h, hz=60, lado="direita"):
     """Liga o monitor virtual no tamanho do tablet. Devolve dict ou None."""
     global _ativo, _nome
@@ -247,7 +257,8 @@ def ativar(w, h, hz=60, lado="direita"):
     if not instalar_se_preciso():
         return None
     mon = _monitor_virtual(apenas_ativo=False)
-    if mon is None or not win_display.tem_modo(mon["nome"], w, h):
+    if (mon is None or not win_display.tem_modo(mon["nome"], w, h)
+            or _config_desatualizada()):
         # Resolução nova: grava no XML e recarrega o driver.
         try:
             escrever_config(w, h, hz, contagem=1)
