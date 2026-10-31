@@ -452,6 +452,17 @@ def vigiar_usb(porta):
         time.sleep(3)
 
 
+def encerrar_adb():
+    """Fecha o adb que abrimos (senão ele fica segurando arquivos)."""
+    adb = caminho_adb()
+    if adb:
+        try:
+            subprocess.run([adb, "kill-server"], capture_output=True, timeout=5,
+                           creationflags=0x08000000 if _WIN else 0)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+
 # ------------------------------------------------------------------ mDNS
 def anunciar_mdns(porta):
     if Zeroconf is None:
@@ -559,6 +570,27 @@ def main():
     print("=" * 56)
 
     zc, info = anunciar_mdns(a.porta)
+
+    def limpar():
+        with Controle.lock:
+            if Controle.sessao:
+                Controle.sessao.parar()
+        tela_virtual.desativar()
+        encerrar_adb()
+
+    if _WIN:
+        # Fechar a janela pelo X: desliga o monitor virtual e o adb antes de sair.
+        import ctypes
+        _HANDLER = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_uint)
+
+        def ao_fechar(evento):
+            if evento in (2, 5, 6):  # CLOSE, LOGOFF, SHUTDOWN
+                limpar()
+            return 0
+
+        main._handler = _HANDLER(ao_fechar)  # manter referência viva
+        ctypes.windll.kernel32.SetConsoleCtrlHandler(main._handler, True)
+
     threading.Thread(target=vigiar_usb, args=(a.porta,), daemon=True).start()
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
@@ -567,10 +599,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        with Controle.lock:
-            if Controle.sessao:
-                Controle.sessao.parar()
-        tela_virtual.desativar()
+        limpar()
         if zc:
             zc.unregister_service(info)
             zc.close()

@@ -50,3 +50,26 @@ Filename: "{app}\{#Exe}"; Description: "Abrir o Segunda Tela agora"; Flags: post
 [UninstallRun]
 Filename: "{app}\{#Exe}"; Parameters: "--desinstalar-driver"; Flags: runhidden waituntilterminated; RunOnceId: "RemoverDriver"
 Filename: "netsh"; Parameters: "advfirewall firewall delete rule name=""Segunda Tela"""; Flags: runhidden; RunOnceId: "RemoverFirewall"
+
+[Code]
+// Fecha o servidor e o adb (iniciado por ele) para liberar os arquivos.
+procedure FecharProcessos();
+var
+  R: Integer;
+begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im SegundaTela-Servidor.exe', '', SW_HIDE, ewWaitUntilTerminated, R);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im adb.exe', '', SW_HIDE, ewWaitUntilTerminated, R);
+  Sleep(800);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  FecharProcessos();
+  Result := '';
+end;
+
+function InitializeUninstall(): Boolean;
+begin
+  FecharProcessos();
+  Result := True;
+end;
