@@ -29,7 +29,7 @@ def _encoders(kbps, fps, origem_gpu):
     """Lista de (nome, filtro, args do encoder) na ordem de preferência."""
     b = "%dk" % kbps
     buf = "%dk" % max(kbps // max(fps, 1) * 2, 200)
-    comum = ["-g", str(fps * 10), "-bf", "0"]
+    comum = ["-g", str(fps * 2), "-bf", "0"]
     sw = "hwdownload,format=bgra,format=yuv420p" if origem_gpu else "format=yuv420p"
     lista = [
         ("NVIDIA NVENC", None if origem_gpu else "format=yuv420p",
@@ -60,7 +60,7 @@ def _entradas(alvo, fps):
     if alvo.get("dxgi") is not None:
         out.append(("ddagrab", True,
                     ["-f", "lavfi", "-i",
-                     "ddagrab=output_idx=%d:framerate=%d:draw_mouse=1:dup_frames=0"
+                     "ddagrab=output_idx=%d:framerate=%d:draw_mouse=1"
                      % (alvo["dxgi"], fps)]))
     out.append(("gdigrab", False,
                 ["-f", "gdigrab", "-framerate", str(fps), "-draw_mouse", "1",

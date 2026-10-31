@@ -164,6 +164,11 @@ def instalar_driver_admin():
                     "/v", "VDDPATH", "/t", "REG_SZ", "/d", DIR_CONF, "/f"],
                    capture_output=True)
     time.sleep(5)
+    for _ in range(10):
+        if _monitor_virtual() is not None:
+            break
+        time.sleep(1)
+    recolher()
     return r.returncode == 0
 
 
@@ -288,6 +293,17 @@ def ativar(w, h, hz=60, lado="direita"):
     print("[tela estendida] Monitor virtual %s: %dx%d em (%d,%d)"
           % (mon["nome"], mon["w"], mon["h"], mon["x"], mon["y"]))
     return mon
+
+
+def recolher():
+    """Desliga o monitor virtual se estiver ligado sem tablet conectado
+    (ex.: logo após instalar o driver ou se o servidor fechou de repente)."""
+    if not _WIN:
+        return
+    mon = _monitor_virtual()
+    if mon is not None:
+        win_display.desligar(mon["nome"])
+        print("[tela estendida] Monitor virtual guardado até o tablet conectar.")
 
 
 def desativar():

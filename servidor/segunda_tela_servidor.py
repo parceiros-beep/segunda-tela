@@ -51,15 +51,23 @@ VERSAO = "3.0"
 _WIN = sys.platform == "win32"
 
 
-def ips_locais():
-    ips = set()
+def ip_principal():
+    """IP da placa de rede que tem a rota padrão (o Wi-Fi/cabo de verdade)."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
-        ips.add(s.getsockname()[0])
+        ip = s.getsockname()[0]
         s.close()
+        return ip
     except OSError:
-        pass
+        return None
+
+
+def ips_locais():
+    ips = set()
+    principal = ip_principal()
+    if principal:
+        ips.add(principal)
     try:
         for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
             ip = info[4][0]
@@ -123,6 +131,9 @@ def preparar_tela(qs):
     fps = numero(qs, "fps", 60, int, 10, 120)
     lado = qs.get("lado", ["direita"])[0]
     mon = None
+    if modo != "estender" and Controle.extendido:
+        Controle.extendido = False
+        tela_virtual.desativar()
     if modo == "estender":
         mon = tela_virtual.ativar(w, h, 60 if fps <= 60 else fps, lado)
         if mon is None:
@@ -446,7 +457,10 @@ def anunciar_mdns(porta):
     if Zeroconf is None:
         return None, None
     try:
-        ips = ips_locais()
+        # Só o IP principal: adaptadores virtuais (VPN, WSL, VirtualBox)
+        # fariam o tablet tentar um endereço que ele não alcança.
+        principal = ip_principal()
+        ips = [principal] if principal else ips_locais()
         if not ips:
             return None, None
         nome = socket.gethostname()
@@ -528,13 +542,18 @@ def main():
     # Tela estendida: instala o monitor virtual já na abertura (1ª vez).
     if _WIN:
         tela_virtual.instalar_se_preciso()
+        tela_virtual.recolher()
     print(" Tela estendida: %s" % ("pronta" if tela_virtual.instalado()
                                    else "indisponível (espelhamento)"))
     print(" Vídeo H.264: %s" % ("pronto" if video.caminho_ffmpeg()
                                 else "ffmpeg ausente (modo compatível)"))
     print(" Porta: %d   PIN: %s" % (a.porta, Handler.pin or "(sem PIN)"))
-    for ip in ips_locais():
-        print(" No app, toque no PC encontrado ou digite: %s" % ip)
+    principal = ip_principal()
+    if principal:
+        print(" No app, toque no PC encontrado ou digite: %s" % principal)
+    outros = [ip for ip in ips_locais() if ip != principal]
+    if outros:
+        print(" Outros IPs deste PC: %s" % ", ".join(outros))
     print(" USB: ligue a 'Depuração USB' no tablet e plugue o cabo.")
     print(" Feche esta janela (ou Ctrl+C) para encerrar.")
     print("=" * 56)

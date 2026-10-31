@@ -89,6 +89,8 @@ class H264View @JvmOverloads constructor(
     override fun surfaceDestroyed(h: SurfaceHolder) {
         surfaceOk = CountDownLatch(1)
         liberarCodec()
+        // Reconecta: a nova sessão começa num quadro-chave (imagem limpa).
+        try { socket?.close() } catch (_: Exception) {}
     }
 
     private fun loop() {
@@ -196,19 +198,34 @@ class H264View @JvmOverloads constructor(
         codec?.let { if (w == codecW && h == codecH) return it }
         liberarCodec()
         if (!surfaceOk.await(5, TimeUnit.SECONDS)) return null
-        val fmt = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h)
-        if (Build.VERSION.SDK_INT >= 30) fmt.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
-        fmt.setInteger(MediaFormat.KEY_PRIORITY, 0)
-        fmt.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, w * h)
-        // Chaves de baixa latência dos fabricantes (ignoradas se não existirem).
-        fmt.setInteger("vendor.qti-ext-dec-low-latency.enable", 1)
-        fmt.setInteger("vendor.low-latency.enable", 1)
-        fmt.setInteger("vendor.rtc-ext-dec-low-latency.enable", 1)
-        val c = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
-        c.configure(fmt, holder.surface, null, 0)
-        c.start()
+        val c = try {
+            criarDecoder(w, h, extras = true)
+        } catch (e: Exception) {
+            // Alguns decodificadores recusam as chaves de baixa latência.
+            criarDecoder(w, h, extras = false)
+        }
         codec = c; codecW = w; codecH = h
         outThread = Thread({ saida(c) }, "video-out").apply { isDaemon = true; start() }
+        return c
+    }
+
+    private fun criarDecoder(w: Int, h: Int, extras: Boolean): MediaCodec {
+        val fmt = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h)
+        fmt.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, w * h)
+        if (extras) {
+            if (Build.VERSION.SDK_INT >= 30) fmt.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
+            fmt.setInteger(MediaFormat.KEY_PRIORITY, 0)
+            fmt.setInteger("vendor.qti-ext-dec-low-latency.enable", 1)
+            fmt.setInteger("vendor.low-latency.enable", 1)
+        }
+        val c = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+        try {
+            c.configure(fmt, holder.surface, null, 0)
+            c.start()
+        } catch (e: Exception) {
+            try { c.release() } catch (_: Exception) {}
+            throw e
+        }
         return c
     }
 
