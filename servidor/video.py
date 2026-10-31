@@ -11,7 +11,6 @@ import shutil
 import subprocess
 import sys
 import threading
-import time
 
 _WIN = sys.platform == "win32"
 _encoder_ok = None  # memoriza a 1ª combinação que funcionou
