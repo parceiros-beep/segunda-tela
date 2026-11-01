@@ -19,6 +19,9 @@ _WIN = sys.platform == "win32"
 IP_PC = "192.168.137.1"  # endereço do PC na rede do hotspot do Windows
 _ligado_por_nos = False
 
+# Estado que o painel mostra: desligado | ligando | ligado | erro
+ESTADO = {"estado": "desligado", "ssid": "", "senha": "", "banda": "", "msg": ""}
+
 _BANDAS = {"auto": 0, "2.4": 1, "5": 2}
 _NOMES = {"TwoPointFourGigahertz": "2,4 GHz", "FiveGigahertz": "5 GHz",
           "SixGigahertz": "6 GHz", "Auto": "automática"}
@@ -120,16 +123,20 @@ def _rodar(acao, banda="auto"):
 def ligar(banda="5"):
     """Liga a rede direta. banda: "5", "2.4" ou "auto"."""
     global _ligado_por_nos
+    ESTADO.update(estado="ligando", msg="", banda="")
     res = _rodar("ligar", banda)
     res.update(credenciais())
     res["ip"] = IP_PC
     if res.get("ok") and res.get("ativo"):
         _ligado_por_nos = True
+        ESTADO.update(estado="ligado", ssid=res["ssid"], senha=res["senha"],
+                      banda=res.get("banda_nome", ""), msg=res.get("msg", ""))
         print("[direto] Rede direta ligada: %s (senha %s), faixa %s."
               % (res["ssid"], res["senha"], res["banda_nome"] or "?"))
         if res.get("msg"):
             print("[direto] " + res["msg"])
     else:
+        ESTADO.update(estado="erro", msg=res.get("msg", "") or "O Windows não ligou o hotspot.")
         print("[direto] Não consegui ligar a rede direta: %s" % res.get("msg", ""))
     return res
 
@@ -138,6 +145,7 @@ def desligar():
     global _ligado_por_nos
     res = _rodar("desligar")
     _ligado_por_nos = False
+    ESTADO.update(estado="desligado", msg="", banda="")
     print("[direto] Rede direta desligada.")
     return res
 

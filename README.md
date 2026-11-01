@@ -54,15 +54,20 @@ No app, toque em **Conexão direta 5 GHz** (ou 2,4 GHz). O PC liga o Hotspot mó
 
 Instale o [Tailscale](https://tailscale.com) (gratuito) no PC e no tablet, com a mesma conta. No app, digite o IP do PC no Tailscale (100.x.x.x) e toque em Conectar. Use um PIN no servidor (`--pin`).
 
-## Em segundo plano (sem janela preta)
+## Painel e segundo plano (sem janela preta)
 
-O servidor roda **sem janela**: só o ícone perto do relógio do Windows (se não aparecer, clique na setinha ^). Não precisa deixar nada aberto.
+O servidor roda **escondido**: só o ícone perto do relógio do Windows (se não aparecer, clique na setinha ^). Não precisa deixar nenhuma janela aberta.
 
-- **Clique no ícone** para ver o IP do PC e se o tablet está conectado.
-- **Menu do ícone:** conexão direta, QR code, ver o registro (log) e **Sair**.
-- No instalador, a opção **"Abrir o Segunda Tela junto com o Windows"** deixa tudo pronto sozinho ao ligar o PC.
-- Se abrir o programa uma segunda vez, ele avisa que já está rodando.
-- Os avisos que apareciam na janela preta ficam em `%APPDATA%\SegundaTela\servidor.log` (menu do ícone › *Ver registro*). Erros graves vão para `erro.log` e aparecem numa caixa de aviso.
+**O painel** (estilo One UI, com tema claro/escuro e cor de destaque à sua escolha) abre ao clicar no ícone, ao abrir o programa pelo atalho, ou ao abrir de novo se já estiver rodando. Nele você vê:
+
+- se o tablet está conectado (resolução, encoder, tempo), o IP do PC e o PIN;
+- a conexão direta 5 GHz / 2,4 GHz com QR code, nome e senha da rede;
+- os recursos (tela estendida, som, área de transferência) e as opções gerais, como abrir com o Windows;
+- o registro (log) do servidor e o botão para encerrar.
+
+**Fechar a janela do painel não encerra nada.** Para encerrar de verdade, use *Encerrar o Segunda Tela* no painel ou *Sair* no menu do ícone.
+
+O painel só responde a este PC e exige uma chave secreta guardada na sua pasta de usuário, então nenhum site aberto no navegador consegue mexer no servidor. Os avisos do servidor ficam em `%APPDATA%\SegundaTela\servidor.log`, e erros graves em `erro.log`.
 
 ## Servidor
 

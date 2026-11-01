@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="pt-BR" data-tema="auto" data-cor="azul">
+<head>
+<meta charset="utf-8">
+<title>Segunda Tela - Painel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<style>
+:root {
+  --bg: #f2f2f2; --card: #fcfcfc; --card2: #ededed; --texto: #111111; --muda: #737373;
+  --linha: #e6e6e6; --acento: #0381fe; --ok: #1dab61; --erro: #e5484d; --aviso: #d98a00;
+  --raio: 26px; --sombra: 0 1px 0 rgba(0,0,0,.02);
+  --fonte: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Roboto", sans-serif;
+}
+:root[data-cor="verde"]   { --acento: #1dab61; }
+:root[data-cor="roxo"]    { --acento: #7b61ff; }
+:root[data-cor="laranja"] { --acento: #f2740d; }
+:root[data-cor="rosa"]    { --acento: #e8408a; }
+:root[data-tema="escuro"] {
+  --bg: #000000; --card: #171717; --card2: #252525; --texto: #fafafa; --muda: #9a9a9a;
+  --linha: #262626; --sombra: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-tema="auto"] {
+    --bg: #000000; --card: #171717; --card2: #252525; --texto: #fafafa; --muda: #9a9a9a;
+    --linha: #262626; --sombra: none;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--texto); font-family: var(--fonte); }
+body { -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; padding: 0; }
+svg.i { width: 24px; height: 24px; fill: currentColor; flex: none; }
+.pagina { max-width: 640px; margin: 0 auto; padding: 0 14px 56px; }
+
+/* ---------- barra compacta (aparece ao rolar) ---------- */
+.barra {
+  position: sticky; top: 0; z-index: 20; height: 56px; display: flex; align-items: center;
+  justify-content: center; font-size: 18px; font-weight: 600; letter-spacing: -.2px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  opacity: 0; transform: translateY(-6px); transition: opacity .2s, transform .2s;
+  pointer-events: none; margin: 0 -14px;
+}
+.compacto .barra { opacity: 1; transform: none; }
+
+/* ---------- cabeçalho grande ---------- */
+.cabecalho { min-height: 168px; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 12px 18px; margin-top: -56px; }
+.cabecalho h1 { margin: 0; font-size: 40px; line-height: 1.1; font-weight: 400; letter-spacing: -.8px; }
+.cabecalho p { margin: 8px 0 0; color: var(--muda); font-size: 15px; }
+.compacto .cabecalho h1 { opacity: .0; transition: opacity .15s; }
+
+/* ---------- cartões ---------- */
+.rotulo { margin: 22px 0 8px; padding: 0 12px; font-size: 14px; font-weight: 600; color: var(--muda); }
+.cartao { background: var(--card); border-radius: var(--raio); overflow: hidden; box-shadow: var(--sombra); }
+.linha { display: flex; align-items: center; gap: 14px; min-height: 68px; padding: 12px 20px; }
+.linha + .linha, .linha + .bloco, .bloco + .linha { border-top: 1px solid var(--linha); }
+.linha.toque { cursor: pointer; transition: background .12s; }
+.linha.toque:hover { background: color-mix(in srgb, var(--texto) 4%, transparent); }
+.linha.toque:active { background: color-mix(in srgb, var(--texto) 8%, transparent); }
+.icone {
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: color-mix(in srgb, var(--acento) 12%, transparent); color: var(--acento);
+}
+.icone.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.icone.erro { background: color-mix(in srgb, var(--erro) 14%, transparent); color: var(--erro); }
+.txt { flex: 1; min-width: 0; }
+.txt b { display: block; font-weight: 400; font-size: 17px; }
+.txt small { display: block; margin-top: 2px; color: var(--muda); font-size: 13.5px; line-height: 1.35; }
+.valor { color: var(--acento); font-size: 15px; text-align: right; max-width: 52%; overflow-wrap: anywhere; }
+.chev { color: var(--muda); }
+.bloco { padding: 16px 20px 18px; }
+.bloco > small { display: block; color: var(--muda); font-size: 13.5px; line-height: 1.4; margin-bottom: 12px; }
+
+/* ---------- destaque de status ---------- */
+.hero { padding: 24px 22px 20px; border-radius: 30px; background: var(--card); box-shadow: var(--sombra); }
+.hero-topo { display: flex; align-items: center; gap: 18px; }
+.orb {
+  position: relative; width: 68px; height: 68px; border-radius: 50%; flex: none; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--acento) 70%, #fff), var(--acento));
+}
+.orb svg { width: 32px; height: 32px; }
+.orb::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--acento); opacity: 0; animation: pulso 2.6s ease-out infinite; }
+[data-estado="conectado"] .orb { background: linear-gradient(145deg, #6fdba0, var(--ok)); }
+[data-estado="conectado"] .orb::after { border-color: var(--ok); animation-duration: 1.6s; }
+[data-estado="offline"] .orb { background: var(--card2); color: var(--muda); }
+[data-estado="offline"] .orb::after { display: none; }
+@keyframes pulso { 0% { transform: scale(.92); opacity: .55; } 80%, 100% { transform: scale(1.3); opacity: 0; } }
+.hero h2 { margin: 0; font-size: 24px; font-weight: 500; letter-spacing: -.3px; }
+.hero p { margin: 4px 0 0; color: var(--muda); font-size: 14.5px; line-height: 1.35; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 12px; border-radius: 999px;
+  background: var(--card2); font-size: 15px; transition: transform .1s, background .12s;
+}
+.chip:active { transform: scale(.97); }
+.chip svg { width: 20px; height: 20px; color: var(--acento); }
+.chip .copia { width: 17px; height: 17px; color: var(--muda); margin-left: 2px; }
+
+/* ---------- aviso "pode fechar" ---------- */
+.aviso { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding: 16px 18px; border-radius: 22px; background: color-mix(in srgb, var(--acento) 9%, transparent); color: var(--texto); font-size: 14px; line-height: 1.45; }
+.aviso svg { color: var(--acento); margin-top: 1px; }
+
+/* ---------- controles ---------- */
+.seg { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--card2); }
+.seg button { flex: 1; height: 40px; border-radius: 999px; font-size: 15px; color: var(--muda); transition: background .15s, color .15s; white-space: nowrap; }
+.seg button.on { background: var(--acento); color: #fff; font-weight: 600; }
+.seg.peq button { height: 34px; font-size: 14px; padding: 0 12px; }
+.seg.peq { flex: none; }
+.sw { position: relative; width: 52px; height: 30px; border-radius: 999px; background: color-mix(in srgb, var(--muda) 45%, transparent); flex: none; transition: background .2s; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.sw[aria-checked="true"] { background: var(--acento); }
+.sw[aria-checked="true"]::after { transform: translateX(22px); }
+.botao { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 22px; border-radius: 999px; font-size: 15.5px; font-weight: 600; background: var(--acento); color: #fff; transition: transform .1s, opacity .15s; }
+.botao:active { transform: scale(.97); }
+.botao.suave { background: color-mix(in srgb, var(--acento) 12%, transparent); color: var(--acento); }
+.botao.perigo { background: color-mix(in srgb, var(--erro) 13%, transparent); color: var(--erro); }
+.botao[disabled] { opacity: .5; pointer-events: none; }
+.botao svg { width: 20px; height: 20px; }
+.acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.cores { display: flex; gap: 10px; }
+.cor { width: 30px; height: 30px; border-radius: 50%; position: relative; }
+.cor.on::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid currentColor; }
+
+/* ---------- conexão direta ---------- */
+.direto-info { display: flex; gap: 18px; align-items: center; margin-top: 16px; padding: 16px; border-radius: 20px; background: var(--card2); }
+.direto-info img { width: 128px; height: 128px; border-radius: 14px; background: #fff; padding: 6px; flex: none; image-rendering: pixelated; }
+.direto-info dl { margin: 0; flex: 1; min-width: 0; }
+.direto-info dt { color: var(--muda); font-size: 12.5px; margin-top: 10px; }
+.direto-info dt:first-child { margin-top: 0; }
+.direto-info dd { margin: 2px 0 0; font-size: 16px; display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.estado { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14.5px; color: var(--muda); }
+.estado.ok { color: var(--ok); } .estado.erro { color: var(--erro); }
+.giro { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--acento) 25%, transparent); border-top-color: var(--acento); animation: gira .8s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+
+/* ---------- registro ---------- */
+.log { margin: 0; padding: 14px 16px; max-height: 190px; overflow: auto; border-radius: 16px; background: var(--card2); font: 12px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muda); }
+
+/* ---------- rodapé, aviso rápido e janelas ---------- */
+.rodape { text-align: center; color: var(--muda); font-size: 13px; margin: 26px 0 16px; line-height: 1.6; }
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 24px); opacity: 0; padding: 12px 22px; border-radius: 999px; background: #222; color: #fff; font-size: 14.5px; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60; }
+.toast.ver { opacity: 1; transform: translate(-50%, 0); }
+.fundo { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+.fundo.ver { display: flex; animation: surge .18s ease-out; }
+@keyframes surge { from { opacity: 0; } }
+.janela { width: 100%; max-width: 380px; padding: 26px 24px 20px; border-radius: 30px; background: var(--card); box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.janela h3 { margin: 0 0 8px; font-size: 21px; font-weight: 500; text-align: center; }
+.janela p { margin: 0 0 16px; color: var(--muda); font-size: 14.5px; line-height: 1.45; text-align: center; }
+.janela input { width: 100%; height: 52px; padding: 0 18px; border-radius: 16px; border: 2px solid transparent; background: var(--card2); color: var(--texto); font: inherit; font-size: 20px; letter-spacing: 4px; text-align: center; outline: none; }
+.janela input:focus { border-color: var(--acento); }
+.janela .acoes { margin-top: 18px; justify-content: stretch; }
+.janela .acoes .botao { flex: 1; }
+.offline-faixa { display: none; margin-top: 14px; padding: 14px 18px; border-radius: 20px; background: color-mix(in srgb, var(--erro) 12%, transparent); color: var(--erro); font-size: 14px; }
+[data-estado="offline"] .offline-faixa { display: block; }
+.oculto { display: none !important; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+@media (max-width: 420px) { .direto-info { flex-direction: column; align-items: stretch; } .direto-info img { align-self: center; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-monitor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-3v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H4V4h16v12z"/></symbol>
+<symbol id="i-wifi" viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></symbol>
+<symbol id="i-key" viewBox="0 0 24 24"><path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></symbol>
+<symbol id="i-som" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24"><path d="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/></symbol>
+<symbol id="i-tablet" viewBox="0 0 24 24"><path d="M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-2 14H5V6h14v12z"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></symbol>
+<symbol id="i-copia" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></symbol>
+<symbol id="i-pasta" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></symbol>
+<symbol id="i-atualiza" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></symbol>
+<symbol id="i-paleta" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></symbol>
+<symbol id="i-raio" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></symbol>
+<symbol id="i-power" viewBox="0 0 24 24"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></symbol>
+<symbol id="i-ok" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></symbol>
+</defs></svg>
+
+<div id="raiz" data-estado="aguardando">
+<div class="pagina">
+  <div class="barra">Segunda Tela</div>
+
+  <header class="cabecalho">
+    <h1>Segunda Tela</h1>
+    <p id="sub">Use o tablet como segundo monitor</p>
+  </header>
+
+  <section class="hero" id="hero">
+    <div class="hero-topo">
+      <div class="orb"><svg class="i"><use href="#i-monitor"/></svg></div>
+      <div>
+        <h2 id="h-titulo">Aguardando o tablet</h2>
+        <p id="h-sub">Abra o Segunda Tela no tablet e toque neste PC.</p>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="offline-faixa">Sem resposta do servidor. Ele pode ter sido encerrado; abra o Segunda Tela de novo pelo menu Iniciar.</div>
+  </section>
+
+  <div class="aviso">
+    <svg class="i"><use href="#i-info"/></svg>
+    <span><b>Pode fechar esta janela.</b> O Segunda Tela continua funcionando em segundo plano — o ícone fica perto do relógio do Windows (clique na seta ^ se não aparecer).</span>
+  </div>
+
+  <div id="sec-tablet" class="oculto">
+    <div class="rotulo">Tablet conectado</div>
+    <div class="cartao" id="c-tablet"></div>
+  </div>
+
+  <div class="rotulo">Seu PC</div>
+  <div class="cartao" id="c-pc"></div>
+
+  <div class="rotulo">Conexão direta (sem roteador)</div>
+  <div class="cartao">
+    <div class="bloco">
+      <small>O PC cria a própria rede Wi‑Fi e o tablet entra nela: menos atraso e mais velocidade. Com o PC no Wi‑Fi do roteador, a placa pode ficar presa à faixa dele; no cabo de rede, funciona em qualquer faixa que a placa aceite.</small>
+      <div class="seg" id="seg-direto">
+        <button data-v="5">5 GHz</button>
+        <button data-v="2.4">2,4 GHz</button>
+        <button data-v="off">Desligada</button>
+      </div>
+      <div class="estado" id="direto-estado"></div>
+      <div id="direto-detalhe"></div>
+    </div>
+  </div>
+
+  <div class="rotulo">Recursos</div>
+  <div class="cartao" id="c-recursos"></div>
+
+  <div class="rotulo">Geral</div>
+  <div class="cartao" id="c-geral"></div>
+
+  <div class="rotulo">Aparência</div>
+  <div class="cartao">
+    <div class="linha">
+      <div class="icone"><svg class="i"><use href="#i-paleta"/></svg></div>
+      <div class="txt"><b>Tema</b></div>
+      <div class="seg peq" id="seg-tema">
+        <button data-v="auto">Auto</button><button data-v="claro">Claro</button><button data-v="escuro">Escuro</button>
+      </div>
+    </div>
+    <div class="linha">
+      <div class="icone"><svg class="i"><use href="#i-paleta"/></svg></div>
+      <div class="txt"><b>Cor de destaque</b></div>
+      <div class="cores" id="cores">
+        <button class="cor" data-v="azul" style="background:#0381fe;color:#0381fe" aria-label="Azul"></button>
+        <button class="cor" data-v="verde" style="background:#1dab61;color:#1dab61" aria-label="Verde"></button>
+        <button class="cor" data-v="roxo" style="background:#7b61ff;color:#7b61ff" aria-label="Roxo"></button>
+        <button class="cor" data-v="laranja" style="background:#f2740d;color:#f2740d" aria-label="Laranja"></button>
+        <button class="cor" data-v="rosa" style="background:#e8408a;color:#e8408a" aria-label="Rosa"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="rotulo">Registro</div>
+  <div class="cartao"><div class="bloco">
+    <pre class="log" id="log">Carregando…</pre>
+    <div class="acoes" style="margin-top:12px">
+      <button class="botao suave" id="b-log-atualiza"><svg class="i"><use href="#i-atualiza"/></svg>Atualizar</button>
+      <button class="botao suave" id="b-log-copia"><svg class="i"><use href="#i-copia"/></svg>Copiar</button>
+      <button class="botao suave" id="b-pasta"><svg class="i"><use href="#i-pasta"/></svg>Abrir pasta</button>
+    </div>
+  </div></div>
+
+  <div class="rodape" id="rodape"></div>
+  <div style="text-align:center"><button class="botao perigo" id="b-sair"><svg class="i"><use href="#i-power"/></svg>Encerrar o Segunda Tela</button></div>
+</div>
+</div>
+
+<div class="fundo" id="j-pin"><div class="janela">
+  <h3>PIN de segurança</h3>
+  <p>Só tablets que digitarem este PIN conseguem conectar. Deixe em branco para não pedir PIN.</p>
+  <input id="in-pin" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="••••">
+  <div class="acoes"><button class="botao suave" data-fecha>Cancelar</button><button class="botao" id="b-pin-ok">Salvar</button></div>
+</div></div>
+
+<div class="fundo" id="j-sair"><div class="janela">
+  <h3>Encerrar o Segunda Tela?</h3>
+  <p>O tablet será desconectado e o monitor virtual será desligado. Para usar de novo, abra o Segunda Tela pelo menu Iniciar.</p>
+  <div class="acoes"><button class="botao suave" data-fecha>Cancelar</button><button class="botao perigo" id="b-sair-ok">Encerrar</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const ic = n => `<svg class="i"><use href="#i-${n}"/></svg>`;
+  const raiz = document.documentElement;
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // ---- chave de acesso (vem na URL aberta pelo servidor) ----
+  const params = new URLSearchParams(location.search);
+  const T = params.get("t") || sessionStorage.getItem("t") || "";
+  if (params.get("t")) { sessionStorage.setItem("t", T); history.replaceState(null, "", location.pathname); }
+  const api = async (rota, corpo) => {
+    const r = await fetch(rota, {
+      method: corpo === undefined ? "GET" : "POST",
+      headers: { "X-Token": T, "Content-Type": "application/json" },
+      body: corpo === undefined ? undefined : JSON.stringify(corpo),
+    });
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  };
+
+  // ---- aparência (salva neste computador) ----
+  const guarda = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
+  const le = (k, p) => { try { return localStorage.getItem(k) || p; } catch (_) { return p; } };
+  const aplicaAparencia = () => {
+    raiz.dataset.tema = le("tema", "auto");
+    raiz.dataset.cor = le("cor", "azul");
+    $$("#seg-tema button").forEach(b => b.classList.toggle("on", b.dataset.v === raiz.dataset.tema));
+    $$("#cores .cor").forEach(b => b.classList.toggle("on", b.dataset.v === raiz.dataset.cor));
+  };
+  $("#seg-tema").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { guarda("tema", b.dataset.v); aplicaAparencia(); } });
+  $("#cores").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { guarda("cor", b.dataset.v); aplicaAparencia(); } });
+  aplicaAparencia();
+
+  // ---- cabeçalho que encolhe ao rolar (como no One UI) ----
+  const atualizaCompacto = () => document.body.classList.toggle("compacto", scrollY > 96);
+  addEventListener("scroll", atualizaCompacto, { passive: true });
+  atualizaCompacto();
+
+  // ---- avisos ----
+  let tToast;
+  const aviso = (t) => { const el = $("#toast"); el.textContent = t; el.classList.add("ver"); clearTimeout(tToast); tToast = setTimeout(() => el.classList.remove("ver"), 2200); };
+  const copia = async (texto, msg) => {
+    try { await navigator.clipboard.writeText(texto); } catch (_) {
+      const t = document.createElement("textarea"); t.value = texto; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove();
+    }
+    aviso(msg || "Copiado");
+  };
+  const janela = (id, ver) => $(id).classList.toggle("ver", ver);
+  $$("[data-fecha]").forEach(b => b.addEventListener("click", () => $$(".fundo").forEach(f => f.classList.remove("ver"))));
+  $$(".fundo").forEach(f => f.addEventListener("click", e => { if (e.target === f) f.classList.remove("ver"); }));
+
+  // ---- desenho do estado ----
+  let E = null, ultimo = "";
+  const dur = (s) => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : m ? `${m} min` : `${s} s`; };
+
+  function desenha(e) {
+    E = e;
+    const r = document.getElementById("raiz");
+    r.dataset.estado = e.conectado ? "conectado" : "aguardando";
+    const s = e.sessao;
+    $("#h-titulo").textContent = e.conectado ? "Tablet conectado" : "Aguardando o tablet";
+    $("#h-sub").textContent = e.conectado && s
+      ? `${s.extendido ? "Tela estendida" : "Espelhando a tela"} · ${s.w}×${s.h} · há ${dur(e.agora - s.desde)}`
+      : "Abra o Segunda Tela no tablet e toque neste PC.";
+    $("#chips").innerHTML =
+      `<button class="chip" data-copia="${esc(e.ip)}">${ic("wifi")}<span>${esc(e.ip || "sem rede")}:${e.porta}</span>${ic("copia").replace('class="i"', 'class="i copia"')}</button>` +
+      (e.pin ? `<span class="chip">${ic("key")}<span>PIN ativo</span></span>` : "");
+
+    // tablet conectado
+    $("#sec-tablet").classList.toggle("oculto", !(e.conectado && s));
+    if (e.conectado && s) {
+      $("#c-tablet").innerHTML =
+        `<div class="linha"><div class="icone ok">${ic("tablet")}</div><div class="txt"><b>Tablet</b><small>${esc(s.cliente)}</small></div></div>` +
+        `<div class="linha"><div class="icone">${ic("monitor")}</div><div class="txt"><b>${s.extendido ? "Tela estendida" : "Espelhamento"}</b><small>${s.w}×${s.h}</small></div></div>` +
+        `<div class="linha"><div class="icone">${ic("raio")}</div><div class="txt"><b>Vídeo</b><small>${esc(s.encoder || "")}<br>${esc(s.resumo || "")}</small></div></div>`;
+    }
+
+    // seu PC
+    $("#c-pc").innerHTML =
+      `<div class="linha"><div class="icone">${ic("monitor")}</div><div class="txt"><b>Nome do PC</b></div><div class="valor">${esc(e.nome)}</div></div>` +
+      `<div class="linha toque" data-copia="${esc(e.ip)}"><div class="icone">${ic("wifi")}</div><div class="txt"><b>Endereço para o tablet</b><small>Toque para copiar. ${e.outros_ips.length ? "Outros: " + esc(e.outros_ips.join(", ")) : ""}</small></div><div class="valor">${esc(e.ip || "—")}</div></div>` +
+      `<div class="linha toque" id="l-pin"><div class="icone">${ic("key")}</div><div class="txt"><b>PIN de segurança</b><small>${e.pin ? "Pedido ao conectar" : "Sem PIN: qualquer tablet na rede conecta"}</small></div><div class="valor">${e.pin ? "••••" : "Desligado"}</div><span class="chev">${ic("chev")}</span></div>`;
+
+    // conexão direta
+    const d = e.direto;
+    const ativo = d.estado === "ligado" ? (d.banda.includes("2,4") ? "2.4" : d.banda.includes("5") ? "5" : "") : (d.estado === "ligando" ? "" : "off");
+    $$("#seg-direto button").forEach(b => b.classList.toggle("on", b.dataset.v === ativo || (d.estado === "ligado" && !ativo && b.dataset.v === "5")));
+    $("#seg-direto").classList.toggle("oculto", !d.suportado);
+    const est = $("#direto-estado");
+    est.className = "estado" + (d.estado === "ligado" ? " ok" : d.estado === "erro" ? " erro" : "");
+    est.innerHTML = !d.suportado ? "Disponível só no Windows."
+      : d.estado === "ligando" ? `<div class="giro"></div>Ligando a rede do PC… pode levar alguns segundos.`
+      : d.estado === "ligado" ? `${ic("ok")}Ligada${d.banda ? " · " + esc(d.banda) : ""}${d.msg ? " — " + esc(d.msg) : ""}`
+      : d.estado === "erro" ? esc(d.msg || "Não consegui ligar a rede direta.")
+      : "Desligada. Escolha uma faixa para ligar.";
+    $("#direto-detalhe").innerHTML = d.estado === "ligado"
+      ? `<div class="direto-info">${d.qr ? `<img alt="QR code da rede" src="${d.qr}">` : ""}<dl>` +
+        `<dt>Rede</dt><dd>${esc(d.ssid)} <button class="chip" style="height:30px;padding:0 10px" data-copia="${esc(d.ssid)}">${ic("copia").replace('class="i"', 'class="i copia"')}</button></dd>` +
+        `<dt>Senha</dt><dd>${esc(d.senha)} <button class="chip" style="height:30px;padding:0 10px" data-copia="${esc(d.senha)}">${ic("copia").replace('class="i"', 'class="i copia"')}</button></dd>` +
+        `<dt>No tablet</dt><dd style="font-size:14px;color:var(--muda)">Câmera lê o QR, ou use “Conexão direta” no app.</dd></dl></div>`
+      : "";
+
+    // recursos
+    $("#c-recursos").innerHTML =
+      `<div class="linha"><div class="icone ${e.tela_estendida ? "ok" : ""}">${ic("monitor")}</div><div class="txt"><b>Tela estendida</b><small>${e.tela_estendida ? "Monitor virtual pronto" : "O monitor virtual será instalado na primeira conexão"}</small></div>` +
+        `${e.conectado && s && s.extendido ? `<button class="botao suave" id="b-desliga-tela">Desligar</button>` : ""}</div>` +
+      `<div class="linha"><div class="icone ${e.som ? "ok" : "erro"}">${ic("som")}</div><div class="txt"><b>Som do PC no tablet</b><small>${e.som ? "Disponível — ative nas opções do app do tablet" : "Indisponível neste PC"}</small></div></div>` +
+      `<div class="linha"><div class="icone ok">${ic("clip")}</div><div class="txt"><b>Área de transferência</b><small>Copie num lado e cole no outro (ative no app)</small></div></div>`;
+
+    // geral
+    const dao = e.config.direto_ao_abrir || "off";
+    $("#c-geral").innerHTML =
+      `<div class="linha"><div class="icone">${ic("raio")}</div><div class="txt"><b>Abrir com o Windows</b><small>Fica em segundo plano ao ligar o PC</small></div><button class="sw" id="sw-win" role="switch" aria-checked="${e.config.iniciar_com_windows}"></button></div>` +
+      `<div class="linha"><div class="icone">${ic("wifi")}</div><div class="txt"><b>Conexão direta ao abrir</b><small>Liga a rede do PC sozinha</small></div>` +
+        `<div class="seg peq" id="seg-dao"><button data-v="off" class="${dao === "off" ? "on" : ""}">Não</button><button data-v="5" class="${dao === "5" ? "on" : ""}">5 GHz</button><button data-v="2.4" class="${dao === "2.4" ? "on" : ""}">2,4</button></div></div>`;
+
+    $("#rodape").innerHTML = `Segunda Tela ${esc(e.versao)} · build ${esc(e.build)}`;
+  }
+
+  // ---- ações (delegação de eventos) ----
+  document.addEventListener("click", async ev => {
+    const c = ev.target.closest("[data-copia]");
+    if (c) return copia(c.dataset.copia, "Copiado");
+    if (ev.target.closest("#l-pin")) { $("#in-pin").value = E ? E.pin : ""; janela("#j-pin", true); setTimeout(() => $("#in-pin").focus(), 60); return; }
+    const seg = ev.target.closest("#seg-direto button");
+    if (seg) { try { await api("/api/direto", { banda: seg.dataset.v }); carrega(); } catch (_) { aviso("Não consegui falar com o servidor"); } return; }
+    const dao = ev.target.closest("#seg-dao button");
+    if (dao) { await api("/api/config", { direto_ao_abrir: dao.dataset.v === "off" ? null : dao.dataset.v }); carrega(); return; }
+    if (ev.target.closest("#sw-win")) { await api("/api/config", { iniciar_com_windows: !(E && E.config.iniciar_com_windows) }); carrega(); return; }
+    if (ev.target.closest("#b-desliga-tela")) { await api("/api/desligar-tela", {}); aviso("Tela estendida desligada"); carrega(); return; }
+  });
+  $("#b-pin-ok").addEventListener("click", async () => {
+    const pin = $("#in-pin").value.trim();
+    try { await api("/api/pin", { pin }); janela("#j-pin", false); aviso(pin ? "PIN salvo" : "PIN removido"); carrega(); } catch (_) { aviso("Use só letras e números (até 12)"); }
+  });
+  $("#in-pin").addEventListener("keydown", e => { if (e.key === "Enter") $("#b-pin-ok").click(); });
+  $("#b-sair").addEventListener("click", () => janela("#j-sair", true));
+  $("#b-sair-ok").addEventListener("click", async () => { try { await api("/api/sair", {}); } catch (_) {} document.body.innerHTML = '<p style="font:18px system-ui;text-align:center;margin-top:30vh;color:#888">Segunda Tela encerrado.<br>Pode fechar esta janela.</p>'; });
+  $("#b-pasta").addEventListener("click", () => api("/api/abrir-pasta", {}));
+  const log = async () => { try { const l = await api("/api/log"); $("#log").textContent = l.linhas.length ? l.linhas.join("\n") : "O registro está vazio."; const el = $("#log"); el.scrollTop = el.scrollHeight; } catch (_) {} };
+  $("#b-log-atualiza").addEventListener("click", log);
+  $("#b-log-copia").addEventListener("click", () => copia($("#log").textContent, "Registro copiado"));
+
+  // ---- atualização periódica ----
+  async function carrega() {
+    try {
+      const e = await api("/api/estado");
+      const chave = JSON.stringify(e, (k, v) => (k === "agora" ? undefined : v)) + Math.floor(e.agora / 5);
+      if (chave !== ultimo) { ultimo = chave; desenha(e); }
+    } catch (_) {
+      document.getElementById("raiz").dataset.estado = "offline";
+      $("#h-titulo").textContent = "Sem conexão com o servidor";
+      $("#h-sub").textContent = "";
+    }
+  }
+  carrega(); log();
+  setInterval(() => { if (!document.hidden) carrega(); }, 2000);
+  setInterval(() => { if (!document.hidden) log(); }, 8000);
+})();
+</script>
+</body>
+</html>

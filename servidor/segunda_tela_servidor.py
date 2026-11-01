@@ -32,6 +32,7 @@ import base64
 import io
 import json
 import os
+import secrets
 import select
 import shutil
 import socket
@@ -47,6 +48,7 @@ import audio
 import config
 import hotspot
 import janela
+import painel
 import win_clip
 import win_display
 import win_input
@@ -59,7 +61,7 @@ except ImportError:  # descoberta automática é opcional
     Zeroconf = None
 
 BOUNDARY = "segundatela"
-VERSAO = "3.9"
+VERSAO = "4.0"
 try:  # o CI grava este arquivo com o número da compilação e o commit
     from versao_build import BUILD
 except ImportError:
@@ -175,6 +177,10 @@ class Controle:
     sessao = None
     area = None          # (left, top, w, h) da tela mostrada no tablet
     extendido = False
+    info = None          # dados da transmissão atual (para o painel)
+    porta = 8080
+    ao_sair = None       # função de limpeza, usada pelo botão "Encerrar" do painel
+    icone = None         # ícone da bandeja (para sumir ao encerrar)
 
     @classmethod
     def nova(cls):
@@ -250,6 +256,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlparse(self.path)
         qs = parse_qs(url.query)
+        if url.path == "/painel" or url.path.startswith("/api/"):
+            self.rota_painel("GET", url.path, qs)
+            return
         if url.path in ("/", "/status"):
             info = {"app": "segundatela", "versao": VERSAO, "build": BUILD,
                     "nome": socket.gethostname(), "pin": bool(self.pin),
@@ -288,6 +297,60 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(corpo)))
         self.end_headers()
         self.wfile.write(corpo)
+
+    # ---------------------------------------------------------- painel (só neste PC)
+    def _responder(self, codigo, corpo, tipo="application/json; charset=utf-8"):
+        if isinstance(corpo, (dict, list)):
+            corpo = json.dumps(corpo).encode("utf-8")
+        elif isinstance(corpo, str):
+            corpo = corpo.encode("utf-8")
+        self.send_response(codigo)
+        self.send_header("Content-Type", tipo)
+        self.send_header("Content-Length", str(len(corpo)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(corpo)
+
+    def _painel_autorizado(self, qs):
+        """Só este PC, com o nome de host certo (contra DNS rebinding) e com a
+        chave secreta: nenhum site aberto no navegador consegue mandar comandos."""
+        if self.client_address[0] not in ("127.0.0.1", "::1"):
+            return False
+        host = (self.headers.get("Host") or "").lower()
+        if host.startswith("["):               # IPv6: [::1]:8080
+            host = host.split("]")[0] + "]"
+        else:                                  # 127.0.0.1:8080 / localhost
+            host = host.rsplit(":", 1)[0]
+        if host not in ("127.0.0.1", "localhost", "[::1]"):
+            return False
+        chave = self.headers.get("X-Token") or qs.get("t", [""])[0]
+        return secrets.compare_digest(chave.encode(), painel.token().encode())
+
+    def rota_painel(self, metodo, caminho, qs):
+        if not self._painel_autorizado(qs):
+            self._responder(403, {"erro": "nao autorizado"})
+            return
+        try:
+            corpo = {}
+            if metodo == "POST":
+                n = int(self.headers.get("Content-Length") or 0)
+                if n:
+                    corpo = json.loads(self.rfile.read(min(n, 65536)).decode("utf-8") or "{}")
+            if caminho == "/painel":
+                self._responder(200, painel.pagina_html(), "text/html; charset=utf-8")
+            elif caminho == "/api/estado":
+                self._responder(200, estado_painel())
+            elif caminho == "/api/log":
+                self._responder(200, {"linhas": painel.ler_log(120)})
+            elif metodo == "POST":
+                codigo, resposta = acao_painel(caminho, corpo)
+                self._responder(codigo, resposta)
+            else:
+                self._responder(404, {"erro": "nao encontrado"})
+        except (ValueError, KeyError, TypeError):
+            self._responder(400, {"erro": "pedido invalido"})
+        except OSError:
+            pass
 
     # ---------------------------------------------------------- rede direta
     def conexao_direta(self, banda):
@@ -383,6 +446,9 @@ class Handler(BaseHTTPRequestHandler):
                 pacote(2, "Nenhum encoder de vídeo funcionou neste PC. "
                           "Use o modo Compatível.".encode())
                 return
+            Controle.info = {"cliente": cliente, "resumo": opcoes.resumo(),
+                             "encoder": sessao.descricao, "w": alvo["w"], "h": alvo["h"],
+                             "extendido": Controle.extendido, "desde": time.time()}
             # Espera o fim (desconexão ou ffmpeg encerrado). O socket fica sem
             # timeout: ele também valia para o envio dos quadros e derrubava a
             # transmissão quando o Wi-Fi engasgava por mais de 1 s.
@@ -400,6 +466,7 @@ class Handler(BaseHTTPRequestHandler):
             with Controle.lock:
                 if Controle.sessao is sessao:
                     Controle.sessao = None   # a bandeja volta a "Aguardando"
+                    Controle.info = None
             sessao.parar()
             print("[-] %s desconectou" % cliente)
             Controle.terminou(geracao)
@@ -415,6 +482,9 @@ class Handler(BaseHTTPRequestHandler):
         cliente = self.client_address[0]
         print("[+] %s conectou (compatível MJPEG, %d fps)" % (cliente, fps))
         alvo = preparar_tela(qs)
+        Controle.info = {"cliente": cliente, "resumo": "%d fps, qualidade %d" % (fps, qualidade),
+                         "encoder": "Modo compatível (JPEG)", "w": alvo["w"], "h": alvo["h"],
+                         "extendido": Controle.extendido, "desde": time.time()}
         self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.send_response(200)
         self.send_header("Content-Type",
@@ -451,12 +521,18 @@ class Handler(BaseHTTPRequestHandler):
                         time.sleep(resto)
         except OSError:
             pass
+        if Controle.geracao == geracao:
+            Controle.info = None
         print("[-] %s desconectou" % cliente)
         Controle.terminou(geracao)
 
     # ---------------------------------------------------------- entrada
     def do_POST(self):
-        if urlparse(self.path).path != "/input":
+        caminho = urlparse(self.path).path
+        if caminho.startswith("/api/"):
+            self.rota_painel("POST", caminho, {})
+            return
+        if caminho != "/input":
             self.send_error(404, "Nao encontrado")
             return
         self.send_response(200)
@@ -560,6 +636,96 @@ class Handler(BaseHTTPRequestHandler):
                 self._enviar("clip %s\n" % base64.b64encode(texto.encode("utf-8")).decode())
             except OSError:
                 break
+
+
+_cache_ttl = {}
+
+
+def _com_cache(chave, segundos, funcao):
+    """Evita refazer chamadas do Windows a cada atualização do painel (2 s)."""
+    agora = time.time()
+    valor, quando = _cache_ttl.get(chave, (None, 0))
+    if agora - quando > segundos:
+        valor = funcao()
+        _cache_ttl[chave] = (valor, agora)
+    return valor
+
+
+def estado_painel():
+    """Tudo que o painel mostra, num só JSON."""
+    principal = ip_principal() or ""
+    d = hotspot.ESTADO
+    direto = {"suportado": _WIN, "estado": d["estado"], "ssid": d["ssid"],
+              "senha": d["senha"], "banda": d["banda"], "msg": d["msg"], "qr": None}
+    if d["estado"] == "ligado" and d["ssid"]:
+        direto["qr"] = painel.qr_data_url("WIFI:T:WPA;S:%s;P:%s;;" % (d["ssid"], d["senha"]))
+    info = Controle.info
+    return {
+        "versao": VERSAO, "build": BUILD, "nome": socket.gethostname(),
+        "ip": principal, "outros_ips": [ip for ip in ips_locais() if ip != principal],
+        "porta": Controle.porta, "pin": Handler.pin,
+        "conectado": info is not None, "sessao": info,
+        "tela_estendida": bool(_com_cache("driver", 10, tela_virtual.instalado)),
+        "som": bool(_com_cache("som", 60, audio.disponivel)),
+        "direto": direto,
+        "config": {"iniciar_com_windows": bool(_com_cache("auto", 3, painel.iniciado_com_windows)),
+                   "direto_ao_abrir": config.ler("direto_ao_abrir")},
+        "agora": time.time(),
+    }
+
+
+def acao_painel(caminho, corpo):
+    """Ações pedidas pelo painel. Devolve (código HTTP, resposta)."""
+    if caminho == "/api/pin":
+        pin = str(corpo.get("pin", "")).strip()
+        if len(pin) > 12 or (pin and not pin.isalnum()):
+            return 400, {"erro": "PIN invalido"}
+        Handler.pin = pin
+        config.gravar("pin", pin)
+        return 200, {"ok": True}
+    if caminho == "/api/direto":
+        banda = str(corpo.get("banda", ""))
+        if banda not in ("5", "2.4", "off"):
+            return 400, {"erro": "faixa invalida"}
+        if banda != "off":
+            hotspot.ESTADO.update(estado="ligando", msg="", banda="")
+        alvo = hotspot.desligar if banda == "off" else (lambda: hotspot.ligar(banda))
+        threading.Thread(target=alvo, daemon=True).start()
+        return 200, {"ok": True}
+    if caminho == "/api/config":
+        if "iniciar_com_windows" in corpo:
+            iniciar_com_windows(bool(corpo["iniciar_com_windows"]))
+            _cache_ttl.pop("auto", None)
+        if "direto_ao_abrir" in corpo:
+            valor = corpo["direto_ao_abrir"]
+            if valor not in (None, "5", "2.4", "auto"):
+                return 400, {"erro": "valor invalido"}
+            config.gravar("direto_ao_abrir", valor)
+        return 200, {"ok": True}
+    if caminho == "/api/desligar-tela":
+        Controle.extendido = False
+        tela_virtual.desativar()
+        return 200, {"ok": True}
+    if caminho == "/api/abrir-pasta":
+        try:
+            if _WIN:
+                os.startfile(config.pasta())
+        except OSError:
+            pass
+        return 200, {"ok": True}
+    if caminho == "/api/sair":
+        def encerrar():
+            time.sleep(0.4)   # deixa a resposta chegar ao painel
+            try:
+                if Controle.ao_sair:
+                    Controle.ao_sair()
+                if Controle.icone:
+                    Controle.icone.stop()
+            finally:
+                os._exit(0)
+        threading.Thread(target=encerrar, daemon=True).start()
+        return 200, {"ok": True}
+    return 404, {"erro": "nao encontrado"}
 
 
 def aplicar_evento(linha):
@@ -738,14 +904,8 @@ def rodar_bandeja(ao_sair):
     def desligar(_icon, _item):
         tela_virtual.desativar()
 
-    def mostrar(icon, _item):
-        em_uso = "Tablet conectado" if Controle.sessao is not None else "Aguardando o tablet"
-        try:
-            icon.notify("%s\nIP deste PC: %s (porta %s)"
-                        % (em_uso, ip_principal() or "?", getattr(Controle, "porta", 8080)),
-                        "Segunda Tela")
-        except Exception:
-            pass
+    def abrir(_icon, _item):
+        painel.abrir(Controle.porta)
 
     def ver_registro(_icon, _item):
         try:
@@ -789,7 +949,7 @@ def rodar_bandeja(ao_sair):
     menu = pystray.Menu(
         pystray.MenuItem("Segunda Tela %s (build %s)" % (VERSAO, BUILD), None, enabled=False),
         pystray.MenuItem(estado, None, enabled=False),
-        pystray.MenuItem("Mostrar IP e status", mostrar, default=True),
+        pystray.MenuItem("Abrir painel", abrir, default=True),
         pystray.MenuItem("Desligar tela estendida", desligar),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Conexão direta 5 GHz", direto("5")),
@@ -808,13 +968,14 @@ def rodar_bandeja(ao_sair):
         # Com 'setup', o ícone só aparece se pedirmos.
         icone.visible = True
         try:
-            icone.notify("Rodando em segundo plano. Clique no ícone para ver o IP "
-                         "deste PC. Para encerrar, use o menu do ícone > Sair.",
-                         "Segunda Tela")
+            icone.notify("Rodando em segundo plano. Clique no ícone para abrir o painel. "
+                         "Para encerrar, use o menu do ícone > Sair.", "Segunda Tela")
         except Exception:
             pass
 
-    pystray.Icon("segundatela", img, "Segunda Tela", menu).run(preparar)
+    icone = pystray.Icon("segundatela", img, "Segunda Tela", menu)
+    Controle.icone = icone
+    icone.run(preparar)
     return True
 
 
@@ -826,7 +987,7 @@ def iniciar_com_windows(ligar):
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, chave, 0, winreg.KEY_SET_VALUE) as k:
         if ligar:
             winreg.SetValueEx(k, "SegundaTela", 0, winreg.REG_SZ,
-                              '"%s"' % os.path.abspath(sys.executable))
+                              '"%s" --segundo-plano' % os.path.abspath(sys.executable))
         else:
             try:
                 winreg.DeleteValue(k, "SegundaTela")
@@ -878,6 +1039,10 @@ def autoteste():
         modulo("pystray")
         modulo("winreg")
     modulo("soundcard", critico=False)  # som é opcional (pode não haver áudio no CI)
+    pagina = painel.caminho_pagina()
+    existe = os.path.exists(pagina)
+    print("  %s  painel (interface)" % ("ok    " if existe else "FALTA "))
+    ok = ok and existe
     if getattr(sys, "frozen", False):
         itens = {"ffmpeg": video.caminho_ffmpeg(), "adb": caminho_adb(),
                  "driver": os.path.join(getattr(sys, "_MEIPASS", ""), "drivers", "MttVDD.inf")}
@@ -943,6 +1108,8 @@ def _main():
                    help="abrir o servidor junto com o Windows")
     p.add_argument("--direto", choices=["5", "2.4", "auto"],
                    help="ligar a rede direta (hotspot do PC) ao abrir")
+    p.add_argument("--segundo-plano", action="store_true",
+                   help="iniciar escondido (sem abrir o painel)")
     p.add_argument("--sem-bandeja", action="store_true",
                    help="não criar o ícone da bandeja (só o console)")
     p.add_argument("--selftest", action="store_true",
@@ -973,16 +1140,25 @@ def _main():
     if _WIN and _TEM_CONSOLE:
         os.system("title Segunda Tela - servidor %s (build %s)" % (VERSAO, BUILD))
 
-    Handler.pin = a.pin.strip()
+    Handler.pin = (a.pin or config.ler("pin", "") or "").strip()
     Controle.porta = a.porta
     try:
         srv = Servidor(("0.0.0.0", a.porta), Handler)
     except OSError as e:
         print("Não foi possível abrir a porta %d: %s" % (a.porta, e))
+        # Já aberto? Então só mostra o painel da cópia que está rodando.
+        try:
+            import urllib.request
+            with urllib.request.urlopen("http://127.0.0.1:%d/status" % a.porta, timeout=2) as r:
+                ja_aberto = b"segundatela" in r.read()
+        except Exception:
+            ja_aberto = False
+        if ja_aberto:
+            painel.abrir(a.porta)
+            sys.exit(0)
         avisar("Segunda Tela",
-               "O Segunda Tela já está aberto neste PC (a porta %d está em uso).\n\n"
-               "Procure o ícone perto do relógio do Windows. Se não aparecer, "
-               "clique na setinha ^ ao lado do relógio." % a.porta)
+               "A porta %d está em uso por outro programa. Feche o outro programa "
+               "ou use outra porta (--porta)." % a.porta)
         sys.exit(1)
 
     print("=" * 56)
@@ -1038,6 +1214,10 @@ def _main():
         _main._handler = _HANDLER(ao_fechar)  # manter referência viva
         ctypes.windll.kernel32.SetConsoleCtrlHandler(_main._handler, True)
 
+    Controle.ao_sair = limpar
+    if not a.segundo_plano:
+        # Abriu à mão (atalho/instalador): mostra o painel. Pelo Windows, fica escondido.
+        threading.Timer(1.2, painel.abrir, args=(a.porta,)).start()
     threading.Thread(target=vigiar_usb, args=(a.porta,), daemon=True).start()
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:

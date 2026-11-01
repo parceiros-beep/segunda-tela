@@ -40,7 +40,7 @@ Name: "{group}\Desinstalar {#Nome}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#Nome}"; Filename: "{app}\{#Exe}"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SegundaTela"; ValueData: """{app}\{#Exe}"""; Flags: uninsdeletevalue; Tasks: autostart
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SegundaTela"; ValueData: """{app}\{#Exe}"" --segundo-plano"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
 ; Monitor virtual (tela estendida) + regra do Firewall. O instalador já é admin.

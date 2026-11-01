@@ -75,6 +75,7 @@ jobs:
           --add-binary "extras/ffmpeg.exe;."
           --add-data "extras/drivers;drivers"
           --add-data "extras/adb;adb"
+          --add-data "servidor/painel;painel"
           servidor/segunda_tela_servidor.py
 
       - name: Autoteste do executável (tudo veio dentro do .exe?)
