@@ -888,14 +888,14 @@ def rodar_bandeja(ao_sair):
     Devolve False se a bandeja não estiver disponível (aí o console continua)."""
     try:
         import pystray
-        from PIL import Image, ImageDraw
+        from PIL import Image
     except ImportError:
         return False
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle((4, 10, 60, 46), radius=8, fill=(3, 129, 254, 255))
-    d.rectangle((26, 46, 38, 54), fill=(3, 129, 254, 255))
-    d.rectangle((18, 54, 46, 58), fill=(3, 129, 254, 255))
+    try:
+        import icone
+        img = icone.desenhar(64)
+    except Exception:
+        img = Image.new("RGBA", (64, 64), (3, 129, 254, 255))
 
     def estado(_item):  # texto dinâmico: o pystray passa só o item
         # Sem lock: esta função roda na thread da bandeja, que não pode esperar.

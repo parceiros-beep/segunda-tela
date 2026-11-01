@@ -21,7 +21,8 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 WizardStyle=modern
-UninstallDisplayIcon={app}\{#Exe}
+UninstallDisplayIcon={app}\segunda-tela.ico
+SetupIconFile=segunda-tela.ico
 CloseApplications=yes
 
 [Languages]
@@ -33,11 +34,12 @@ Name: "autostart"; Description: "Abrir o Segunda Tela junto com o Windows"; Grou
 
 [Files]
 Source: "..\dist\SegundaTela-Servidor\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "segunda-tela.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#Nome}"; Filename: "{app}\{#Exe}"
+Name: "{group}\{#Nome}"; Filename: "{app}\{#Exe}"; IconFilename: "{app}\segunda-tela.ico"
 Name: "{group}\Desinstalar {#Nome}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#Nome}"; Filename: "{app}\{#Exe}"; Tasks: desktopicon
+Name: "{autodesktop}\{#Nome}"; Filename: "{app}\{#Exe}"; IconFilename: "{app}\segunda-tela.ico"; Tasks: desktopicon
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SegundaTela"; ValueData: """{app}\{#Exe}"" --segundo-plano"; Flags: uninsdeletevalue; Tasks: autostart
