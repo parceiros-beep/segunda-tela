@@ -170,4 +170,32 @@ Sugestão: perfil %2$s. Quer aplicar?</string>
     <string name="d_compat">Use só se o PC não tiver codificação H.264 ou H.265 por hardware. Mais lento e sem ajustes ao vivo. Recomendado: desligado.</string>
     <string name="d_jpeg">Qualidade das imagens no modo compatível. Maior = mais nítido e mais dados. Recomendado: 75.</string>
     <string name="d_autoconnect">Conecta sozinho ao último PC quando o app abre. Recomendado: ligado se você usa sempre o mesmo PC.</string>
+    <!-- Conexão direta, som, área de transferência, barra e bitrate -->
+    <string name="sec_direct">Conexão direta (sem roteador)</string>
+    <string name="sec_network">Rede</string>
+    <string name="direct_5">Conexão direta 5 GHz</string>
+    <string name="direct_5_desc">O PC cria a própria rede Wi‑Fi em 5 GHz e o tablet entra nela: mais rápido e com menos atraso. Precisa de placa Wi‑Fi com 5 GHz no PC; com o PC no Wi‑Fi do roteador, a faixa costuma seguir a do roteador.</string>
+    <string name="direct_24">Conexão direta 2,4 GHz</string>
+    <string name="direct_24_desc">Mesma coisa em 2,4 GHz: alcança mais longe e funciona em quase todo PC, mas é mais lenta. Use se a de 5 GHz não ligar.</string>
+    <string name="direct_exit">Voltar para a rede normal</string>
+    <string name="direct_exit_desc">Sai da rede do PC e volta para o Wi‑Fi de sempre.</string>
+    <string name="direct_left">De volta à rede normal</string>
+    <string name="direct_starting">Ligando a rede do PC… pode levar alguns segundos.</string>
+    <string name="direct_on">Rede %1$s ligada (%2$s). Entrando nela…</string>
+    <string name="direct_unreachable">Não consegui falar com o PC em %1$s:%2$d para ligar a rede direta. Abra o servidor no PC (ou ligue a conexão direta pelo ícone da bandeja) e tente de novo.</string>
+    <string name="direct_error_title">Conexão direta</string>
+    <string name="direct_failed">O tablet não conseguiu entrar na rede %1$s. Confira se a rede do PC está ligada e perto do tablet.</string>
+    <string name="direct_old_android">Este Android não deixa o app entrar na rede sozinho. Conecte o Wi‑Fi do tablet na rede %1$s (senha %2$s) e abra o app de novo.</string>
+    <string name="pc_settings_loaded">Usando os ajustes salvos para este PC</string>
+    <string name="opt_bar_items">Botões da barra</string>
+    <string name="d_bar_items">Escolha quais atalhos aparecem na barra lateral. Recomendado: só os que você usa, para a barra ficar curta.</string>
+    <string name="bar_count">%1$d de %2$d botões</string>
+    <string name="bar_all">Todos</string>
+    <string name="opt_sound">Som do PC no tablet</string>
+    <string name="d_sound">Toca no tablet o som que sai no PC (vídeos, músicas, avisos). Gasta cerca de 1,5 Mbps a mais. Recomendado: ligado se você usa o tablet como tela de vídeo.</string>
+    <string name="opt_clipboard">Área de transferência compartilhada</string>
+    <string name="d_clipboard">Copiou um texto no PC, cola no tablet, e o contrário. Recomendado: ligado.</string>
+    <string name="opt_adaptive">Bitrate automático durante o uso</string>
+    <string name="d_adaptive">Se a rede piorar, baixa o bitrate sozinho; quando melhora, sobe de volta até o valor escolhido. Cada ajuste faz a imagem piscar por um instante. Recomendado: ligado no Wi‑Fi.</string>
+    <string name="adaptive_changed">Rede mudou: bitrate ajustado para %1$d Mbps</string>
 </resources>

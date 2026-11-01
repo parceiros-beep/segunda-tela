@@ -230,6 +230,32 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Conexão direta -->
+        <TextView
+            style="@style/Label.Section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sec_direct" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Card.Section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:id="@+id/grpDireto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingVertical="6dp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            style="@style/Label.Section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sec_network" />
+
         <!-- Teste de rede -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Card.Section"

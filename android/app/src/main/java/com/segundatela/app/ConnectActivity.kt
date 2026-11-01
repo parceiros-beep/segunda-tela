@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.segundatela.app.databinding.ActivityConnectBinding
 import org.json.JSONArray
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
@@ -37,6 +38,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         b.editPort.setText(aj.porta.toString())
         b.editPin.setText(aj.pin)
         montarOpcoes()
+        montarDireto()
         atualizarResumo()
 
         b.btnConnect.setOnClickListener { conectar(b.editHost.text.toString().trim()) }
@@ -52,8 +54,14 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
                 Uri.parse("https://github.com/parceiros-beep/segunda-tela/releases/latest")))
         }
 
-        // Aberto pelo botão do painel rápido: conecta direto no último PC.
-        if (intent.getBooleanExtra("conectarAgora", false)) {
+        val pendente = intent.getStringExtra("conectarHost")
+        if (pendente != null) {
+            // Voltou de um recarregamento com os ajustes desse PC: continua a conexão.
+            intent.removeExtra("conectarHost")
+            b.root.post { conectar(pendente) }
+        } else if (intent.getBooleanExtra("conectarAgora", false)) {
+            // Aberto pelo botão do painel rápido: conecta direto no último PC.
+            intent.removeExtra("conectarAgora")
             b.root.post { conectar(aj.ultimoHost) }
         } else if (aj.autoconectar && aj.ultimoHost.isNotBlank()) {
             b.root.post { conectar(aj.ultimoHost) }
@@ -151,6 +159,97 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
             conectar(device.host)
         }
         lista.addView(row)
+    }
+
+    // ======================================================= conexão direta
+    /** Linhas da conexão direta: o PC cria a rede Wi‑Fi e o tablet entra nela. */
+    private fun montarDireto() {
+        val pai = b.grpDireto
+        pai.removeAllViews()
+        fun linha(titulo: Int, desc: Int, acao: () -> Unit) {
+            val row = Linhas.linha(this, pai, vertical = true)
+            row.addView(Linhas.texto(this, getString(titulo), 17f, R.color.text_primary))
+            Linhas.explica(this, row, desc)
+            row.setOnClickListener { acao() }
+        }
+        linha(R.string.direct_5, R.string.direct_5_desc) { conexaoDireta("5") }
+        linha(R.string.direct_24, R.string.direct_24_desc) { conexaoDireta("2.4") }
+        if (Direto.ativo) {
+            linha(R.string.direct_exit, R.string.direct_exit_desc) {
+                Direto.sair(this)
+                montarDireto()
+                Toast.makeText(this, R.string.direct_left, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /**
+     * 1) Pede ao PC, pela rede atual, para ligar a rede direta na faixa escolhida.
+     * 2) Entra nessa rede e conecta no PC (192.168.137.1).
+     * Se o PC não responder, usa a rede salva da última vez (ligada pela bandeja).
+     */
+    private fun conexaoDireta(banda: String) {
+        val host = b.editHost.text.toString().trim().ifEmpty { aj.ultimoHost }
+        val porta = portaDigitada()
+        val pin = b.editPin.text.toString().trim()
+        val salvoSsid = prefs.getString("direto_ssid", "") ?: ""
+        val salvoSenha = prefs.getString("direto_senha", "") ?: ""
+        if (host.isEmpty() && salvoSsid.isEmpty()) {
+            Toast.makeText(this, getString(R.string.err_host), Toast.LENGTH_SHORT).show()
+            return
+        }
+        Toast.makeText(this, R.string.direct_starting, Toast.LENGTH_LONG).show()
+        thread(isDaemon = true) {
+            var ssid = salvoSsid
+            var senha = salvoSenha
+            var erro: String? = null
+            var faixa = ""
+            if (host.isNotEmpty() && host != Direto.IP_PC) {
+                try {
+                    val q = "banda=$banda" + if (pin.isNotEmpty()) "&pin=$pin" else ""
+                    val c = URL("http://$host:$porta/direto?$q").openConnection() as HttpURLConnection
+                    c.connectTimeout = 3000; c.readTimeout = 90_000
+                    val j = JSONObject(c.inputStream.bufferedReader().readText())
+                    c.disconnect()
+                    if (j.optBoolean("ok") && j.optBoolean("ativo")) {
+                        ssid = j.optString("ssid"); senha = j.optString("senha")
+                        faixa = j.optString("banda_nome")
+                        val obs = j.optString("msg")
+                        if (obs.isNotEmpty()) faixa = "$faixa. $obs"
+                        prefs.edit().putString("direto_ssid", ssid)
+                            .putString("direto_senha", senha).apply()
+                    } else {
+                        erro = j.optString("msg").ifEmpty { "?" }
+                    }
+                } catch (_: Exception) {
+                    if (ssid.isEmpty()) erro = getString(R.string.direct_unreachable, host, porta)
+                }
+            }
+            runOnUiThread {
+                if (erro != null) {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.direct_error_title)
+                        .setMessage(erro)
+                        .setPositiveButton(R.string.ok, null)
+                        .show()
+                    return@runOnUiThread
+                }
+                if (faixa.isNotEmpty()) {
+                    Toast.makeText(this, getString(R.string.direct_on, ssid, faixa), Toast.LENGTH_LONG).show()
+                }
+                Direto.conectar(this, ssid, senha,
+                    aoConectar = { runOnUiThread { montarDireto(); conectar(Direto.IP_PC) } },
+                    aoFalhar = { m ->
+                        runOnUiThread {
+                            MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.direct_error_title)
+                                .setMessage(m)
+                                .setPositiveButton(R.string.ok, null)
+                                .show()
+                        }
+                    })
+            }
+        }
     }
 
     // ========================================================= teste de rede
@@ -265,8 +364,26 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         aj.porta = portaDigitada()
         b.editPort.setText(aj.porta.toString())
         aj.pin = b.editPin.text.toString().trim()
-        if (host != "127.0.0.1") aj.ultimoHost = host
+
+        // Ajustes lembrados para este PC (salvos na última conexão com ele).
+        val chavePc = "pc:$host:"
+        if (intent.getStringExtra("pcCarregado") != host && Ajustes.existe(prefs, chavePc)) {
+            val doPc = Ajustes.carregar(prefs, chavePc).also {
+                it.porta = aj.porta; it.pin = aj.pin
+                it.ultimoHost = aj.ultimoHost; it.autoconectar = aj.autoconectar
+            }
+            intent.putExtra("pcCarregado", host)
+            if (doPc != aj) {
+                doPc.salvar(prefs)
+                intent.putExtra("conectarHost", host)
+                Toast.makeText(this, R.string.pc_settings_loaded, Toast.LENGTH_SHORT).show()
+                recreate()
+                return
+            }
+        }
+        if (host != "127.0.0.1" && host != Direto.IP_PC) aj.ultimoHost = host
         aj.salvar(prefs)
+        aj.salvar(prefs, chavePc)
 
         val horizontal = Conexao.horizontal(this, aj)
         val p = Conexao.parametros(this, aj, host, horizontal)

@@ -87,6 +87,17 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         }
     }
 
+    // Som do PC e área de transferência
+    private var som: AudioPlayer? = null
+    private var ultimoClip: String? = null
+    private val ouvinteClip = ClipboardManager.OnPrimaryClipChangedListener { enviarClip() }
+
+    // Bitrate automático durante o uso
+    private var mbpsAdaptado = 0
+    private var segundosRuins = 0
+    private var segundosBons = 0
+    private var ultimoAjuste = 0L
+
     // Modificadores fixos da barra lateral (Ctrl/Shift/Alt pressionados)
     private val modificadores = HashMap<Int, View>()
     private var selfEdit = false
@@ -112,7 +123,10 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
             else -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
         }
 
-        input = InputSender(host, port, aj.pin).also { it.start() }
+        input = InputSender(host, port, aj.pin).also {
+            it.clipboard = aj.clipboard
+            it.start()
+        }
 
         val view: View
         if (intent.getBooleanExtra("compat", false)) {
@@ -132,6 +146,11 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         view.setOnGenericMotionListener { _, e -> onGeneric(e) }
 
         input?.aoPing = { ms -> rttMs = ms }
+        if (aj.clipboard) {
+            input?.aoClip = { t -> runOnUiThread { receberClip(t) } }
+            getSystemService(ClipboardManager::class.java).addPrimaryClipChangedListener(ouvinteClip)
+        }
+        if (aj.som) ligarSom(true)
         montarBarra()
         montarMenu()
         mostrarEstatisticas(aj.estatisticas)
@@ -172,6 +191,10 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         b.swStats.isChecked = aj.estatisticas
         b.swStats.setOnCheckedChangeListener { _, v ->
             aj.estatisticas = v; aj.salvar(prefs); mostrarEstatisticas(v)
+        }
+        b.swSom.isChecked = aj.som
+        b.swSom.setOnCheckedChangeListener { _, v ->
+            aj.som = v; aj.salvar(prefs); ligarSom(v)
         }
         b.swPalma.isChecked = aj.palma
         b.swPalma.setOnCheckedChangeListener { _, v -> aj.palma = v; aj.salvar(prefs) }
@@ -255,8 +278,12 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         mostrarEstatisticas(aj.estatisticas)
     }
 
-    private fun caminhoAtual(): String = Conexao.caminho(aj,
-        Conexao.parametros(this, aj, host, Conexao.horizontal(this, aj)), aj.pin)
+    private fun caminhoAtual(): String {
+        // Com o bitrate automático ativo, usa o valor ajustado pela rede.
+        val base = if (mbpsAdaptado > 0) aj.copy(mbps = mbpsAdaptado) else aj
+        return Conexao.caminho(base,
+            Conexao.parametros(this, base, host, Conexao.horizontal(this, base)), aj.pin)
+    }
 
     /** Reinicia a transmissão com os ajustes atuais (sem fechar a tela). */
     private fun reiniciarTransmissao() {
@@ -275,6 +302,34 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         if (!aj.compat && aj.orientacao == "auto") reiniciarTransmissao()
+    }
+
+    // ================================================ som e área de transferência
+    private fun ligarSom(ligar: Boolean) {
+        som?.stop()
+        som = null
+        if (!ligar) return
+        som = AudioPlayer(host, port, aj.pin).also {
+            it.aoErro = { m -> runOnUiThread { Toast.makeText(this, m, Toast.LENGTH_LONG).show() } }
+            it.start()
+        }
+    }
+
+    /** Copiou no PC: põe na área de transferência do tablet. */
+    private fun receberClip(texto: String) {
+        ultimoClip = texto
+        getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(ClipData.newPlainText("Segunda Tela", texto))
+    }
+
+    /** Copiou no tablet: manda para o PC (sem devolver o que veio dele). */
+    private fun enviarClip() {
+        val clip = getSystemService(ClipboardManager::class.java).primaryClip ?: return
+        if (clip.itemCount == 0) return
+        val texto = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+        if (texto.isEmpty() || texto == ultimoClip) return
+        ultimoClip = texto
+        input?.clip(texto)
     }
 
     // ========================================================= diagnóstico
@@ -299,15 +354,43 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
     private fun mostrarEstatisticas(ligar: Boolean) {
         b.lblStats.visibility = if (ligar) View.VISIBLE else View.GONE
         ui.removeCallbacks(pinger)
-        if (ligar) ui.post(pinger)
+        // O atraso da rede também alimenta o bitrate automático.
+        if (ligar || aj.adaptativo) ui.post(pinger)
     }
 
     override fun onEstatisticas(e: H264View.Estatisticas) {
+        adaptarBitrate(e)
         if (b.lblStats.visibility != View.VISIBLE) return
         val rede = if (rttMs >= 0) "$rttMs ms" else "—"
         b.lblStats.text = String.format(java.util.Locale.US,
             "%dx%d %s  %.0f fps\n%.1f Mbps  rede %s  decod %.0f ms\ndescartados %d\n%s",
             e.w, e.h, e.codec, e.fps, e.mbps, rede, e.decodMs, e.descartados, e.encoder)
+    }
+
+    /**
+     * Bitrate automático durante o uso: 3 s seguidos com fps abaixo de 80% do
+     * pedido, muitos quadros descartados ou atraso alto -> baixa 25%.
+     * 30 s estável -> sobe 20% até o valor configurado. Cada ajuste reinicia
+     * a transmissão (a imagem pisca), por isso há um intervalo mínimo de 10 s.
+     */
+    private fun adaptarBitrate(e: H264View.Estatisticas) {
+        if (!aj.adaptativo || aj.compat) return
+        val agora = android.os.SystemClock.elapsedRealtime()
+        if (agora - ultimoAjuste < 10_000) return
+        val p = Conexao.parametros(this, aj, host, Conexao.horizontal(this, aj))
+        val atual = if (mbpsAdaptado > 0) mbpsAdaptado else p.mbps
+        val ruim = e.fps < p.fps * 0.8 || e.descartados > p.fps / 4 || rttMs > 80
+        if (ruim) { segundosRuins++; segundosBons = 0 } else { segundosBons++; segundosRuins = 0 }
+        val novo = when {
+            segundosRuins >= 3 && atual > 4 -> maxOf(4, atual * 3 / 4)
+            segundosBons >= 30 && atual < p.mbps -> minOf(p.mbps, atual * 6 / 5 + 1)
+            else -> return
+        }
+        mbpsAdaptado = novo
+        segundosRuins = 0; segundosBons = 0
+        ultimoAjuste = agora
+        reiniciarTransmissao()
+        mostrarStatus(getString(R.string.adaptive_changed, novo), true)
     }
 
     // ======================================================= barra de atalhos
@@ -331,31 +414,19 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
             b.sidebarScroll.visibility = if (aberto) View.GONE else View.VISIBLE
             b.sidebarHandle.text = if (aberto) abre else fecha
         }
-        tecla("⌨", "Teclado") { abrirTeclado() }
-        modificador("Ctrl", 0xA2)
-        modificador("Shift", 0xA0)
-        modificador("Alt", 0xA4)
-        separador()
-        atalho("↶", "Desfazer", "CTRL+Z")
-        atalho("↷", "Refazer", "CTRL+Y")
-        atalho("Copiar", "Copiar", "CTRL+C")
-        atalho("Colar", "Colar", "CTRL+V")
-        atalho("Recortar", "Recortar", "CTRL+X")
-        atalho("Salvar", "Salvar", "CTRL+S")
-        atalho("Tudo", "Selecionar tudo", "CTRL+A")
-        separador()
-        atalho("Esc", "Esc", "ESC")
-        atalho("Del", "Delete", "DELETE")
-        atalho("⏎", "Enter", "ENTER")
-        atalho("⊞", "Iniciar", "WIN")
-        atalho("Alt⇥", "Alternar janelas", "ALT+TAB")
-        atalho("Área", "Mostrar área de trabalho", "WIN+D")
-        atalho("Zoom+", "Aumentar zoom", "CTRL+PLUS")
-        atalho("Zoom−", "Diminuir zoom", "CTRL+MINUS")
-        separador()
-        tecla("Dir.", "Próximo toque = botão direito") { v ->
-            proximoDireito = !proximoDireito
-            v.isActivated = proximoDireito
+        var grupo = -1
+        for (item in Atalhos.escolhidos(aj)) {
+            if (grupo >= 0 && item.grupo != grupo) separador()
+            grupo = item.grupo
+            when (item.tipo) {
+                "teclado" -> tecla(item.texto, item.nome) { abrirTeclado() }
+                "mod" -> modificador(item.texto, item.valor.toInt())
+                "direito" -> tecla(item.texto, item.nome) { v ->
+                    proximoDireito = !proximoDireito
+                    v.isActivated = proximoDireito
+                }
+                else -> atalho(item.texto, item.nome, item.valor)
+            }
         }
     }
 
@@ -729,6 +800,10 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
 
     override fun onDestroy() {
         ui.removeCallbacks(pinger)
+        som?.stop()
+        if (aj.clipboard) {
+            getSystemService(ClipboardManager::class.java).removePrimaryClipChangedListener(ouvinteClip)
+        }
         b.h264.stop()
         b.mjpeg.stop()
         soltarModificadores()

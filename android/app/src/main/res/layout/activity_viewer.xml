@@ -182,6 +182,13 @@
             android:textColor="@color/text_primary" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swSom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/opt_sound"
+            android:textColor="@color/text_primary" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/swPalma"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

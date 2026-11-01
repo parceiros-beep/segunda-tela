@@ -32,31 +32,39 @@ data class Ajustes(
     var palma: Boolean = false,         // só a caneta age; dedos ignorados
     var barra: Boolean = true,          // barra lateral de atalhos
     var barraLado: String = "esquerda", // esquerda | direita
+    var barraItens: String = "",        // botões da barra (ids separados por vírgula; vazio = todos)
+    // Extras
+    var som: Boolean = false,           // som do PC no tablet
+    var clipboard: Boolean = true,      // área de transferência compartilhada
+    var adaptativo: Boolean = false,    // baixa/sobe o bitrate sozinho durante o uso
     // Conexão
     var porta: Int = 8080,
     var pin: String = "",
     var autoconectar: Boolean = false,
     var ultimoHost: String = ""
 ) {
-    fun salvar(p: SharedPreferences) {
+    /** pre = "" para os ajustes gerais; "pc:<ip>:" para os ajustes de um PC. */
+    fun salvar(p: SharedPreferences, pre: String = "") {
         p.edit()
-            .putString("modo", modo).putString("lado", lado)
-            .putInt("resolucao", resolucao).putInt("escala", escala)
-            .putString("orientacao", orientacao)
-            .putString("perfil", perfil).putString("codec", codec)
-            .putInt("fps3", fps).putInt("mbps", mbps)
-            .putString("taxa", taxa).putInt("cq", cq)
-            .putString("velocidade", velocidade).putFloat("gop", gop)
-            .putBoolean("intra", intra).putBoolean("ultimoQuadro", ultimoQuadro)
-            .putBoolean("estatisticas", estatisticas).putBoolean("cursor", cursor)
-            .putBoolean("compat", compat).putInt("jpeg", jpeg)
-            .putString("toque", toque).putBoolean("caneta", caneta)
-            .putFloat("curva", curva)
-            .putBoolean("palma", palma).putBoolean("barra", barra)
-            .putString("barraLado", barraLado)
-            .putInt("porta3", porta).putString("pin", pin)
-            .putBoolean("autoconectar", autoconectar)
-            .putString("host", ultimoHost)
+            .putString(pre + "modo", modo).putString(pre + "lado", lado)
+            .putInt(pre + "resolucao", resolucao).putInt(pre + "escala", escala)
+            .putString(pre + "orientacao", orientacao)
+            .putString(pre + "perfil", perfil).putString(pre + "codec", codec)
+            .putInt(pre + "fps3", fps).putInt(pre + "mbps", mbps)
+            .putString(pre + "taxa", taxa).putInt(pre + "cq", cq)
+            .putString(pre + "velocidade", velocidade).putFloat(pre + "gop", gop)
+            .putBoolean(pre + "intra", intra).putBoolean(pre + "ultimoQuadro", ultimoQuadro)
+            .putBoolean(pre + "estatisticas", estatisticas).putBoolean(pre + "cursor", cursor)
+            .putBoolean(pre + "compat", compat).putInt(pre + "jpeg", jpeg)
+            .putString(pre + "toque", toque).putBoolean(pre + "caneta", caneta)
+            .putFloat(pre + "curva", curva)
+            .putBoolean(pre + "palma", palma).putBoolean(pre + "barra", barra)
+            .putString(pre + "barraLado", barraLado).putString(pre + "barraItens", barraItens)
+            .putBoolean(pre + "som", som).putBoolean(pre + "clipboard", clipboard)
+            .putBoolean(pre + "adaptativo", adaptativo)
+            .putInt(pre + "porta3", porta).putString(pre + "pin", pin)
+            .putBoolean(pre + "autoconectar", autoconectar)
+            .putString(pre + "host", ultimoHost)
             .apply()
     }
 
@@ -104,37 +112,44 @@ data class Ajustes(
             cursor == o.cursor && compat == o.compat && jpeg == o.jpeg
 
     companion object {
-        fun carregar(p: SharedPreferences) = Ajustes(
-            modo = p.getString("modo", "estender")!!,
-            lado = p.getString("lado", "direita")!!,
-            resolucao = p.getInt("resolucao", 100).coerceIn(25, 100),
-            escala = p.getInt("escala", 0),
-            orientacao = p.getString("orientacao", "auto")!!,
-            perfil = p.getString("perfil", "personalizado")!!,
-            codec = p.getString("codec", "h264")!!,
-            fps = p.getInt("fps3", 60).let { if (it == 0) 0 else it.coerceIn(10, 60) },
-            mbps = p.getInt("mbps", 0).coerceIn(0, 150),
-            taxa = p.getString("taxa", "cbr")!!,
-            cq = p.getInt("cq", 23).coerceIn(15, 40),
-            velocidade = p.getString("velocidade", "rapida")!!,
-            gop = p.getFloat("gop", 2f).coerceIn(0.5f, 10f),
-            intra = p.getBoolean("intra", false),
-            ultimoQuadro = p.getBoolean("ultimoQuadro", true),
-            estatisticas = p.getBoolean("estatisticas", false),
-            cursor = p.getBoolean("cursor", true),
-            compat = p.getBoolean("compat", false),
-            jpeg = p.getInt("jpeg", 75).coerceIn(30, 95),
-            toque = p.getString("toque", "nativo")!!,
-            caneta = p.getBoolean("caneta", true),
-            curva = p.getFloat("curva", 1f).coerceIn(0.4f, 2.5f),
-            palma = p.getBoolean("palma", false),
-            barra = p.getBoolean("barra", true),
-            barraLado = p.getString("barraLado", "esquerda")!!,
-            porta = p.getInt("porta3", 8080).let { if (it in 1..65535) it else 8080 },
-            pin = p.getString("pin", "")!!,
-            autoconectar = p.getBoolean("autoconectar", false),
-            ultimoHost = p.getString("host", "")!!
+        fun carregar(p: SharedPreferences, pre: String = "") = Ajustes(
+            modo = p.getString(pre + "modo", "estender")!!,
+            lado = p.getString(pre + "lado", "direita")!!,
+            resolucao = p.getInt(pre + "resolucao", 100).coerceIn(25, 100),
+            escala = p.getInt(pre + "escala", 0),
+            orientacao = p.getString(pre + "orientacao", "auto")!!,
+            perfil = p.getString(pre + "perfil", "personalizado")!!,
+            codec = p.getString(pre + "codec", "h264")!!,
+            fps = p.getInt(pre + "fps3", 60).let { if (it == 0) 0 else it.coerceIn(10, 60) },
+            mbps = p.getInt(pre + "mbps", 0).coerceIn(0, 150),
+            taxa = p.getString(pre + "taxa", "cbr")!!,
+            cq = p.getInt(pre + "cq", 23).coerceIn(15, 40),
+            velocidade = p.getString(pre + "velocidade", "rapida")!!,
+            gop = p.getFloat(pre + "gop", 2f).coerceIn(0.5f, 10f),
+            intra = p.getBoolean(pre + "intra", false),
+            ultimoQuadro = p.getBoolean(pre + "ultimoQuadro", true),
+            estatisticas = p.getBoolean(pre + "estatisticas", false),
+            cursor = p.getBoolean(pre + "cursor", true),
+            compat = p.getBoolean(pre + "compat", false),
+            jpeg = p.getInt(pre + "jpeg", 75).coerceIn(30, 95),
+            toque = p.getString(pre + "toque", "nativo")!!,
+            caneta = p.getBoolean(pre + "caneta", true),
+            curva = p.getFloat(pre + "curva", 1f).coerceIn(0.4f, 2.5f),
+            palma = p.getBoolean(pre + "palma", false),
+            barra = p.getBoolean(pre + "barra", true),
+            barraLado = p.getString(pre + "barraLado", "esquerda")!!,
+            barraItens = p.getString(pre + "barraItens", "")!!,
+            som = p.getBoolean(pre + "som", false),
+            clipboard = p.getBoolean(pre + "clipboard", true),
+            adaptativo = p.getBoolean(pre + "adaptativo", false),
+            porta = p.getInt(pre + "porta3", 8080).let { if (it in 1..65535) it else 8080 },
+            pin = p.getString(pre + "pin", "")!!,
+            autoconectar = p.getBoolean(pre + "autoconectar", false),
+            ultimoHost = p.getString(pre + "host", "")!!
         )
+
+        /** Já existem ajustes salvos para esse prefixo (ex.: um PC)? */
+        fun existe(p: SharedPreferences, pre: String) = p.contains(pre + "modo")
 
         val ESCALAS = listOf(100, 125, 150, 175, 200, 225, 250, 300)
 

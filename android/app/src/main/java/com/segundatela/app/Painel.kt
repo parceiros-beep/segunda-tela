@@ -233,6 +233,7 @@ class Painel(
         chave(pai, R.string.opt_latest, R.string.d_latest, aj.ultimoQuadro) {
             aj.ultimoQuadro = it; personalizado()
         }
+        chave(pai, R.string.opt_adaptive, R.string.d_adaptive, aj.adaptativo) { aj.adaptativo = it }
         chave(pai, R.string.opt_stats, R.string.d_stats, aj.estatisticas) { aj.estatisticas = it }
         chave(pai, R.string.opt_cursor, R.string.d_cursor, aj.cursor) { aj.cursor = it; personalizado() }
     }
@@ -255,9 +256,53 @@ class Painel(
         escolha(pai, R.string.opt_sidebar_side, R.string.d_sidebar_side, listOf(
             "esquerda" to ctx.getString(R.string.side_left),
             "direita" to ctx.getString(R.string.side_right)), aj.barraLado) { aj.barraLado = it }
+        botoesBarra(pai)
     }
 
+    /** Escolha de quais botões aparecem na barra de atalhos. */
+    fun botoesBarra(pai: LinearLayout) {
+        val row = Linhas.linha(ctx, pai, vertical = true)
+        row.gravity = Gravity.CENTER_VERTICAL or Gravity.START
+        row.addView(Linhas.texto(ctx, ctx.getString(R.string.opt_bar_items), 17f, R.color.text_primary))
+        val sub = Linhas.texto(ctx, resumoBarra(), 14f, R.color.accent)
+            .apply { setPadding(0, Linhas.dp(ctx, 2), 0, 0) }
+        row.addView(sub)
+        Linhas.explica(ctx, row, R.string.d_bar_items)
+        row.setOnClickListener {
+            val itens = Atalhos.todos
+            val atuais = Atalhos.escolhidos(aj).map { it.id }.toSet()
+            val marcados = BooleanArray(itens.size) { itens[it].id in atuais }
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle(R.string.opt_bar_items)
+                .setMultiChoiceItems(itens.map { it.nome }.toTypedArray(), marcados) { _, i, v ->
+                    marcados[i] = v
+                }
+                .setPositiveButton(R.string.ok) { _, _ ->
+                    val ids = itens.filterIndexed { i, _ -> marcados[i] }.map { it.id }
+                    aj.barraItens = when {
+                        ids.size == itens.size -> ""
+                        ids.isEmpty() -> "-"
+                        else -> ids.joinToString(",")
+                    }
+                    sub.text = resumoBarra()
+                    salvar()
+                }
+                .setNeutralButton(R.string.bar_all) { _, _ ->
+                    aj.barraItens = ""
+                    sub.text = resumoBarra()
+                    salvar()
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun resumoBarra() =
+        ctx.getString(R.string.bar_count, Atalhos.escolhidos(aj).size, Atalhos.todos.size)
+
     fun avancadoOpcoes(pai: LinearLayout, mostrarAutoconectar: Boolean) {
+        chave(pai, R.string.opt_sound, R.string.d_sound, aj.som) { aj.som = it }
+        chave(pai, R.string.opt_clipboard, R.string.d_clipboard, aj.clipboard) { aj.clipboard = it }
         chave(pai, R.string.opt_compat, R.string.d_compat, aj.compat) { aj.compat = it }
         deslizante(pai, R.string.opt_jpeg, R.string.d_jpeg, 30f, 95f, 5f, aj.jpeg.toFloat(),
             { x -> "${x.toInt()}" }) { aj.jpeg = it.toInt() }

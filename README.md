@@ -22,6 +22,12 @@ Transforma o tablet ou celular Android num **monitor de verdade** para o PC com 
 | Teste de rede | Mede o atraso até o PC e sugere o perfil que combina com a rede. |
 | Painel rápido | Botão do Android que conecta direto no último PC. |
 | Bandeja do Windows | Ícone com status, desligar a tela estendida e sair. |
+| Conexão direta 5 / 2,4 GHz | O PC cria a própria rede Wi‑Fi (Hotspot móvel do Windows) e o tablet entra nela sozinho, sem roteador no meio. Pelo app ou pelo ícone da bandeja. |
+| Som do PC | O som que sai no PC toca no tablet (opcional). |
+| Área de transferência | Copiou no PC, cola no tablet, e o contrário (texto). |
+| Ajustes por PC | O app lembra a configuração usada com cada computador. |
+| Barra personalizável | Você escolhe quais botões aparecem na barra de atalhos. |
+| Bitrate automático | Durante o uso, baixa o bitrate quando a rede piora e sobe quando melhora (opcional). |
 
 ## Instalação
 
@@ -31,10 +37,23 @@ Transforma o tablet ou celular Android num **monitor de verdade** para o PC com 
 
 **Pelo cabo USB (mais rápido):** ative *Opções do desenvolvedor › Depuração USB* no tablet, plugue no PC com o servidor aberto, aceite o aviso no tablet e toque em *Conectar pelo cabo USB*.
 
+## Conexão direta (sem roteador)
+
+No app, toque em **Conexão direta 5 GHz** (ou 2,4 GHz). O PC liga o Hotspot móvel do Windows com nome e senha próprios, o tablet entra nessa rede (o Android pede confirmação uma vez) e conecta. Também dá para ligar pelo ícone da bandeja ou com `SegundaTela-Servidor.exe --direto 5`.
+
+- A placa Wi‑Fi do PC precisa aceitar a faixa escolhida.
+- Com o PC no **cabo de rede**, qualquer faixa suportada funciona. Com o PC no **Wi‑Fi do roteador**, a mesma placa costuma ficar presa à faixa dessa conexão.
+- Enquanto estiver na rede direta, o tablet sai do Wi‑Fi de casa. Use **Voltar para a rede normal** no app para sair.
+
+## Fora de casa
+
+Instale o [Tailscale](https://tailscale.com) (gratuito) no PC e no tablet, com a mesma conta. No app, digite o IP do PC no Tailscale (100.x.x.x) e toque em Conectar. Use um PIN no servidor (`--pin`).
+
 ## Servidor
 
 - Porta e PIN: `SegundaTela-Servidor.exe --porta 8080 --pin 1234`
 - Abrir com o Windows: `SegundaTela-Servidor.exe --iniciar-com-windows sim`
+- Ligar a conexão direta ao abrir: `SegundaTela-Servidor.exe --direto 5` (ou `2.4`, `auto`)
 - Remover o monitor virtual: `SegundaTela-Servidor.exe --desinstalar-driver`
 
 O console mostra o que está acontecendo: monitor virtual criado (nome, resolução, posição), encoder de vídeo usado e conexões. Se algo falhar, copie essas linhas.

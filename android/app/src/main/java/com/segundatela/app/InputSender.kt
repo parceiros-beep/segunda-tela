@@ -56,7 +56,10 @@ class InputSender(
             val req = "POST /input HTTP/1.1\r\nHost: $host\r\n" +
                 "Content-Type: text/plain\r\nConnection: keep-alive\r\n" +
                 "X-Stream: input\r\n\r\n"
-            o.write(req.toByteArray(Charsets.ISO_8859_1)); o.flush()
+            o.write(req.toByteArray(Charsets.ISO_8859_1))
+            // A cada (re)conexão, pede de novo a área de transferência compartilhada.
+            if (clipboard) o.write(comPin("clipon").toByteArray(Charsets.UTF_8))
+            o.flush()
             socket = s; out = o
             lerRespostas(s)
         } catch (_: Exception) {
@@ -67,12 +70,32 @@ class InputSender(
     /** Recebe "pong <t>" do servidor e calcula o atraso de ida e volta. */
     var aoPing: ((Long) -> Unit)? = null
 
+    /** Área de transferência compartilhada: ligar antes de start(). */
+    @Volatile var clipboard = false
+    /** Texto copiado no PC chegando ao tablet. */
+    var aoClip: ((String) -> Unit)? = null
+
+    fun clip(texto: String) {
+        val b64 = android.util.Base64.encodeToString(
+            texto.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+        enfileira("clip $b64")
+    }
+
     private fun lerRespostas(s: Socket) {
         Thread({
             try {
                 val r = s.getInputStream().bufferedReader(Charsets.UTF_8)
                 while (ativo) {
                     val l = r.readLine() ?: break
+                    val c = l.indexOf("clip ")
+                    if (c >= 0) {
+                        try {
+                            val bytes = android.util.Base64.decode(l.substring(c + 5).trim(),
+                                android.util.Base64.DEFAULT)
+                            aoClip?.invoke(String(bytes, Charsets.UTF_8))
+                        } catch (_: IllegalArgumentException) {}
+                        continue
+                    }
                     val i = l.indexOf("pong ")
                     if (i >= 0) {
                         val t = l.substring(i + 5).trim().toLongOrNull() ?: continue
@@ -118,9 +141,11 @@ class InputSender(
 
     private fun f(v: Float) = String.format(java.util.Locale.US, "%.4f", v.coerceIn(0f, 1f))
 
+    private fun comPin(linha: String) = if (pin.isNotEmpty()) "$linha|$pin\n" else "$linha\n"
+
     private fun enfileira(linha: String) {
         if (!ativo) return
-        val l = if (pin.isNotEmpty()) "$linha|$pin\n" else "$linha\n"
+        val l = comPin(linha)
         handler?.post { envia(l) }
     }
 
