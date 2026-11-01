@@ -58,7 +58,7 @@ Instale o [Tailscale](https://tailscale.com) (gratuito) no PC e no tablet, com a
 
 O servidor roda **escondido**: só o ícone perto do relógio do Windows (se não aparecer, clique na setinha ^). Não precisa deixar nenhuma janela aberta.
 
-**O painel** (estilo One UI, com tema claro/escuro e cor de destaque à sua escolha) abre ao clicar no ícone, ao abrir o programa pelo atalho, ou ao abrir de novo se já estiver rodando. Nele você vê:
+**O painel** (estilo One UI para computador: barra lateral com Visão geral, Conexão direta, Recursos, Aparência, Registro e Sobre; atalhos **Alt+1 a Alt+6**; tema claro/escuro e cor de destaque à sua escolha; em janela estreita vira uma coluna única) abre ao clicar no ícone, ao abrir o programa pelo atalho, ou ao abrir de novo se já estiver rodando. Nele você vê:
 
 - se o tablet está conectado (resolução, encoder, tempo), o IP do PC e o PIN;
 - a conexão direta 5 GHz / 2,4 GHz com QR code, nome e senha da rede;

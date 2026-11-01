@@ -130,7 +130,7 @@ def abrir(porta):
     try:
         if exe:
             perfil = os.path.join(config.pasta(), "perfil-painel")
-            subprocess.Popen([exe, "--app=" + url, "--window-size=520,940",
+            subprocess.Popen([exe, "--app=" + url, "--window-size=1120,780",
                               "--user-data-dir=" + perfil, "--no-first-run",
                               "--no-default-browser-check", "--disable-extensions"])
             return

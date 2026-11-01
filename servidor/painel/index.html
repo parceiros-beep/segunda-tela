@@ -156,6 +156,85 @@ svg.i { width: 24px; height: 24px; fill: currentColor; flex: none; }
 .oculto { display: none !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 @media (max-width: 420px) { .direto-info { flex-direction: column; align-items: stretch; } .direto-info img { align-self: center; } }
+
+/* ================= versão para computador (janela larga) ================= */
+.lateral, .pg-titulo, .so-largo { display: none; }
+.mini { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 20px; background: var(--card); font-size: 14px; }
+.ponto { width: 10px; height: 10px; border-radius: 50%; background: var(--acento); flex: none; animation: respira 2.4s ease-in-out infinite; }
+[data-estado="conectado"] .ponto { background: var(--ok); animation-duration: 1.4s; }
+[data-estado="offline"] .ponto { background: var(--erro); animation: none; }
+@keyframes respira { 50% { opacity: .35; } }
+.linha { flex-wrap: wrap; }
+.txt { flex: 1 1 150px; }
+.linha > .seg.peq, .linha > .cores { margin-left: auto; }
+button:focus-visible, .linha.toque:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.botao.peq { height: 38px; padding: 0 16px; font-size: 14px; }
+.passos { margin: 0; padding: 0; list-style: none; counter-reset: p; }
+.passos li { counter-increment: p; display: flex; gap: 14px; align-items: flex-start; padding: 13px 20px; font-size: 15px; line-height: 1.4; }
+.passos li + li { border-top: 1px solid var(--linha); }
+.passos li::before { content: counter(p); flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 600; color: var(--acento); background: color-mix(in srgb, var(--acento) 12%, transparent); }
+.passos small { display: block; color: var(--muda); font-size: 13px; margin-top: 2px; }
+.sobre-marca { display: flex; align-items: center; gap: 16px; padding: 22px 20px; }
+.sobre-marca .orb { width: 60px; height: 60px; }
+.sobre-marca .orb::after { display: none; }
+.sobre-marca b { font-size: 21px; font-weight: 500; display: block; }
+.sobre-marca small { color: var(--muda); font-size: 14px; }
+a.linha { color: inherit; text-decoration: none; }
+.dica-teclas { color: var(--muda); font-size: 12.5px; padding: 0 12px; margin-top: 12px; }
+kbd { font: 12px ui-monospace, Consolas, monospace; padding: 2px 7px; border-radius: 7px; background: var(--card2); }
+
+@media (min-width: 900px) {
+  html, body { height: 100%; overflow: hidden; }
+  #raiz { display: grid; grid-template-columns: 284px minmax(0, 1fr); height: 100vh; }
+  .barra, .cabecalho { display: none; }
+  .pg-titulo, .so-largo { display: block; }
+  .lateral { display: flex; flex-direction: column; gap: 6px; padding: 26px 16px 20px 20px; min-height: 0; }
+  .marca { display: flex; align-items: center; gap: 14px; padding: 4px 8px 22px; }
+  .marca .orb { width: 46px; height: 46px; }
+  .marca .orb svg { width: 24px; height: 24px; }
+  .marca .orb::after { display: none; }
+  .marca b { display: block; font-size: 19px; font-weight: 600; letter-spacing: -.3px; }
+  .marca small { color: var(--muda); font-size: 12.5px; }
+  .lateral nav { display: flex; flex-direction: column; gap: 4px; }
+  .lateral nav button { display: flex; align-items: center; gap: 14px; height: 50px; padding: 0 18px; border-radius: 25px; font-size: 16px; text-align: left; color: var(--texto); transition: background .15s, color .15s; }
+  .lateral nav button svg { width: 22px; height: 22px; color: var(--muda); transition: color .15s; }
+  .lateral nav button:hover { background: color-mix(in srgb, var(--texto) 6%, transparent); }
+  .lateral nav button.on { background: color-mix(in srgb, var(--acento) 13%, transparent); color: var(--acento); font-weight: 600; }
+  .lateral nav button.on svg { color: var(--acento); }
+  .lateral-fim { margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 14px; }
+  .lateral-fim .botao { width: 100%; }
+
+  .conteudo { overflow-y: auto; padding: 30px 40px 56px 12px; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muda) 40%, transparent) transparent; }
+  .conteudo::-webkit-scrollbar { width: 10px; }
+  .conteudo::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muda) 40%, transparent); border-radius: 10px; border: 2px solid transparent; background-clip: content-box; }
+  .pagina { max-width: 1000px; padding: 0; margin: 0; }
+  .pg { display: none; }
+  .pg.ativa { display: block; animation: entra .22s ease-out; }
+  @keyframes entra { from { opacity: 0; transform: translateY(8px); } }
+  .pg-titulo { margin: 0 0 4px; padding: 0 4px; font-size: 34px; line-height: 1.15; font-weight: 400; letter-spacing: -.7px; }
+  .pg-sub { display: block; margin: 0 4px 18px; color: var(--muda); font-size: 15px; }
+  .rotulo { margin-top: 26px; }
+  .grade2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .grade2 > div > .rotulo:first-child { margin-top: 22px; }
+
+  .hero { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 20px 28px; padding: 30px 34px; border-radius: 34px;
+          background: linear-gradient(120deg, color-mix(in srgb, var(--acento) 15%, var(--card)), var(--card) 62%); }
+  [data-estado="conectado"] .hero { background: linear-gradient(120deg, color-mix(in srgb, var(--ok) 17%, var(--card)), var(--card) 62%); }
+  .hero-topo { gap: 24px; }
+  .orb { width: 88px; height: 88px; }
+  .orb svg { width: 42px; height: 42px; }
+  .hero h2 { font-size: 30px; }
+  .hero p { font-size: 15.5px; }
+  .chips { margin-top: 0; flex-direction: column; align-items: flex-end; }
+  .offline-faixa { grid-column: 1 / -1; margin-top: 0; }
+  .aviso { margin-top: 16px; }
+  .janela { max-width: 420px; }
+  .direto-info img { width: 156px; height: 156px; }
+  .log { max-height: 46vh; font-size: 12.5px; }
+  .rodape { display: none; }
+  #seg-direto { max-width: 480px; }
+}
+@media (min-width: 900px) and (max-height: 640px) { .lateral nav button { height: 44px; } .marca { padding-bottom: 12px; } }
 </style>
 </head>
 <body>
@@ -179,6 +258,26 @@ svg.i { width: 24px; height: 24px; fill: currentColor; flex: none; }
 </defs></svg>
 
 <div id="raiz" data-estado="aguardando">
+<aside class="lateral">
+  <div class="marca">
+    <div class="orb"><svg class="i"><use href="#i-monitor"/></svg></div>
+    <div><b>Segunda Tela</b><small id="l-versao">Painel de controle</small></div>
+  </div>
+  <nav id="nav">
+    <button data-pg="visao" class="on"><svg class="i"><use href="#i-monitor"/></svg>Visão geral</button>
+    <button data-pg="direto"><svg class="i"><use href="#i-wifi"/></svg>Conexão direta</button>
+    <button data-pg="recursos"><svg class="i"><use href="#i-raio"/></svg>Recursos e geral</button>
+    <button data-pg="aparencia"><svg class="i"><use href="#i-paleta"/></svg>Aparência</button>
+    <button data-pg="registro"><svg class="i"><use href="#i-doc"/></svg>Registro</button>
+    <button data-pg="sobre"><svg class="i"><use href="#i-info"/></svg>Sobre</button>
+  </nav>
+  <div class="lateral-fim">
+    <div class="mini"><span class="ponto"></span><span id="mini-txt">Aguardando o tablet</span></div>
+    <div class="dica-teclas">Atalhos: <kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>6</kbd></div>
+  </div>
+</aside>
+
+<main class="conteudo">
 <div class="pagina">
   <div class="barra">Segunda Tela</div>
 
@@ -187,86 +286,137 @@ svg.i { width: 24px; height: 24px; fill: currentColor; flex: none; }
     <p id="sub">Use o tablet como segundo monitor</p>
   </header>
 
-  <section class="hero" id="hero">
-    <div class="hero-topo">
-      <div class="orb"><svg class="i"><use href="#i-monitor"/></svg></div>
+  <!-- ============ Visão geral ============ -->
+  <section class="pg ativa" data-pg="visao">
+    <h2 class="pg-titulo">Visão geral</h2>
+    <span class="pg-sub so-largo">Use o tablet como segundo monitor do PC</span>
+
+    <section class="hero" id="hero">
+      <div class="hero-topo">
+        <div class="orb"><svg class="i"><use href="#i-monitor"/></svg></div>
+        <div>
+          <h2 id="h-titulo">Aguardando o tablet</h2>
+          <p id="h-sub">Abra o Segunda Tela no tablet e toque neste PC.</p>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="offline-faixa">Sem resposta do servidor. Ele pode ter sido encerrado; abra o Segunda Tela de novo pelo menu Iniciar.</div>
+    </section>
+
+    <div class="aviso">
+      <svg class="i"><use href="#i-info"/></svg>
+      <span><b>Pode fechar esta janela.</b> O Segunda Tela continua funcionando em segundo plano — o ícone fica perto do relógio do Windows (clique na seta ^ se não aparecer).</span>
+    </div>
+
+    <div class="grade2">
+      <div id="sec-tablet">
+        <div class="rotulo" id="r-tablet">Como conectar</div>
+        <div class="cartao" id="c-tablet"></div>
+      </div>
       <div>
-        <h2 id="h-titulo">Aguardando o tablet</h2>
-        <p id="h-sub">Abra o Segunda Tela no tablet e toque neste PC.</p>
+        <div class="rotulo">Seu PC</div>
+        <div class="cartao" id="c-pc"></div>
       </div>
     </div>
-    <div class="chips" id="chips"></div>
-    <div class="offline-faixa">Sem resposta do servidor. Ele pode ter sido encerrado; abra o Segunda Tela de novo pelo menu Iniciar.</div>
   </section>
 
-  <div class="aviso">
-    <svg class="i"><use href="#i-info"/></svg>
-    <span><b>Pode fechar esta janela.</b> O Segunda Tela continua funcionando em segundo plano — o ícone fica perto do relógio do Windows (clique na seta ^ se não aparecer).</span>
-  </div>
-
-  <div id="sec-tablet" class="oculto">
-    <div class="rotulo">Tablet conectado</div>
-    <div class="cartao" id="c-tablet"></div>
-  </div>
-
-  <div class="rotulo">Seu PC</div>
-  <div class="cartao" id="c-pc"></div>
-
-  <div class="rotulo">Conexão direta (sem roteador)</div>
-  <div class="cartao">
-    <div class="bloco">
-      <small>O PC cria a própria rede Wi‑Fi e o tablet entra nela: menos atraso e mais velocidade. Com o PC no Wi‑Fi do roteador, a placa pode ficar presa à faixa dele; no cabo de rede, funciona em qualquer faixa que a placa aceite.</small>
-      <div class="seg" id="seg-direto">
-        <button data-v="5">5 GHz</button>
-        <button data-v="2.4">2,4 GHz</button>
-        <button data-v="off">Desligada</button>
-      </div>
-      <div class="estado" id="direto-estado"></div>
-      <div id="direto-detalhe"></div>
-    </div>
-  </div>
-
-  <div class="rotulo">Recursos</div>
-  <div class="cartao" id="c-recursos"></div>
-
-  <div class="rotulo">Geral</div>
-  <div class="cartao" id="c-geral"></div>
-
-  <div class="rotulo">Aparência</div>
-  <div class="cartao">
-    <div class="linha">
-      <div class="icone"><svg class="i"><use href="#i-paleta"/></svg></div>
-      <div class="txt"><b>Tema</b></div>
-      <div class="seg peq" id="seg-tema">
-        <button data-v="auto">Auto</button><button data-v="claro">Claro</button><button data-v="escuro">Escuro</button>
+  <!-- ============ Conexão direta ============ -->
+  <section class="pg" data-pg="direto">
+    <h2 class="pg-titulo">Conexão direta</h2>
+    <span class="pg-sub so-largo">O PC cria a própria rede Wi‑Fi e o tablet entra nela, sem roteador</span>
+    <div class="rotulo" style="margin-top:0">Conexão direta (sem roteador)</div>
+    <div class="cartao">
+      <div class="bloco">
+        <small>O PC cria a própria rede Wi‑Fi e o tablet entra nela: menos atraso e mais velocidade. Com o PC no Wi‑Fi do roteador, a placa pode ficar presa à faixa dele; no cabo de rede, funciona em qualquer faixa que a placa aceite.</small>
+        <div class="seg" id="seg-direto">
+          <button data-v="5">5 GHz</button>
+          <button data-v="2.4">2,4 GHz</button>
+          <button data-v="off">Desligada</button>
+        </div>
+        <div class="estado" id="direto-estado"></div>
+        <div id="direto-detalhe"></div>
       </div>
     </div>
-    <div class="linha">
-      <div class="icone"><svg class="i"><use href="#i-paleta"/></svg></div>
-      <div class="txt"><b>Cor de destaque</b></div>
-      <div class="cores" id="cores">
-        <button class="cor" data-v="azul" style="background:#0381fe;color:#0381fe" aria-label="Azul"></button>
-        <button class="cor" data-v="verde" style="background:#1dab61;color:#1dab61" aria-label="Verde"></button>
-        <button class="cor" data-v="roxo" style="background:#7b61ff;color:#7b61ff" aria-label="Roxo"></button>
-        <button class="cor" data-v="laranja" style="background:#f2740d;color:#f2740d" aria-label="Laranja"></button>
-        <button class="cor" data-v="rosa" style="background:#e8408a;color:#e8408a" aria-label="Rosa"></button>
+  </section>
+
+  <!-- ============ Recursos e geral ============ -->
+  <section class="pg" data-pg="recursos">
+    <h2 class="pg-titulo">Recursos e geral</h2>
+    <span class="pg-sub so-largo">O que o servidor oferece ao tablet e como ele inicia</span>
+    <div class="grade2">
+      <div>
+        <div class="rotulo" style="margin-top:0">Recursos</div>
+        <div class="cartao" id="c-recursos"></div>
+      </div>
+      <div>
+        <div class="rotulo" style="margin-top:0">Geral</div>
+        <div class="cartao" id="c-geral"></div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="rotulo">Registro</div>
-  <div class="cartao"><div class="bloco">
-    <pre class="log" id="log">Carregando…</pre>
-    <div class="acoes" style="margin-top:12px">
-      <button class="botao suave" id="b-log-atualiza"><svg class="i"><use href="#i-atualiza"/></svg>Atualizar</button>
-      <button class="botao suave" id="b-log-copia"><svg class="i"><use href="#i-copia"/></svg>Copiar</button>
-      <button class="botao suave" id="b-pasta"><svg class="i"><use href="#i-pasta"/></svg>Abrir pasta</button>
+  <!-- ============ Aparência ============ -->
+  <section class="pg" data-pg="aparencia">
+    <h2 class="pg-titulo">Aparência</h2>
+    <span class="pg-sub so-largo">Tema e cor de destaque, só neste computador</span>
+    <div class="rotulo" style="margin-top:0">Aparência</div>
+    <div class="cartao">
+      <div class="linha">
+        <div class="icone"><svg class="i"><use href="#i-paleta"/></svg></div>
+        <div class="txt"><b>Tema</b></div>
+        <div class="seg peq" id="seg-tema">
+          <button data-v="auto">Auto</button><button data-v="claro">Claro</button><button data-v="escuro">Escuro</button>
+        </div>
+      </div>
+      <div class="linha">
+        <div class="icone"><svg class="i"><use href="#i-paleta"/></svg></div>
+        <div class="txt"><b>Cor de destaque</b></div>
+        <div class="cores" id="cores">
+          <button class="cor" data-v="azul" style="background:#0381fe;color:#0381fe" aria-label="Azul"></button>
+          <button class="cor" data-v="verde" style="background:#1dab61;color:#1dab61" aria-label="Verde"></button>
+          <button class="cor" data-v="roxo" style="background:#7b61ff;color:#7b61ff" aria-label="Roxo"></button>
+          <button class="cor" data-v="laranja" style="background:#f2740d;color:#f2740d" aria-label="Laranja"></button>
+          <button class="cor" data-v="rosa" style="background:#e8408a;color:#e8408a" aria-label="Rosa"></button>
+        </div>
+      </div>
     </div>
-  </div></div>
+  </section>
 
-  <div class="rodape" id="rodape"></div>
-  <div style="text-align:center"><button class="botao perigo" id="b-sair"><svg class="i"><use href="#i-power"/></svg>Encerrar o Segunda Tela</button></div>
+  <!-- ============ Registro ============ -->
+  <section class="pg" data-pg="registro">
+    <h2 class="pg-titulo">Registro</h2>
+    <span class="pg-sub so-largo">O que o servidor anotou, útil quando algo não funciona</span>
+    <div class="rotulo" style="margin-top:0">Registro</div>
+    <div class="cartao"><div class="bloco">
+      <pre class="log" id="log">Carregando…</pre>
+      <div class="acoes" style="margin-top:12px">
+        <button class="botao suave" id="b-log-atualiza"><svg class="i"><use href="#i-atualiza"/></svg>Atualizar</button>
+        <button class="botao suave" id="b-log-copia"><svg class="i"><use href="#i-copia"/></svg>Copiar</button>
+        <button class="botao suave" id="b-pasta"><svg class="i"><use href="#i-pasta"/></svg>Abrir pasta</button>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ============ Sobre ============ -->
+  <section class="pg" data-pg="sobre">
+    <h2 class="pg-titulo">Sobre</h2>
+    <span class="pg-sub so-largo">Versão, diagnóstico e encerramento</span>
+    <div class="cartao so-largo">
+      <div class="sobre-marca">
+        <div class="orb"><svg class="i"><use href="#i-monitor"/></svg></div>
+        <div><b>Segunda Tela</b><small id="s-versao"></small></div>
+      </div>
+    </div>
+    <div class="rotulo so-largo">Ajuda</div>
+    <div class="cartao so-largo">
+      <div class="linha toque" id="b-diag"><div class="icone"><svg class="i"><use href="#i-copia"/></svg></div><div class="txt"><b>Copiar diagnóstico</b><small>Versão, estado e registro, para enviar quando algo não funcionar</small></div></div>
+      <a class="linha toque" href="https://github.com/parceiros-beep/segunda-tela/releases/latest" target="_blank" rel="noopener"><div class="icone"><svg class="i"><use href="#i-atualiza"/></svg></div><div class="txt"><b>Procurar atualização</b><small>Abre a página de downloads</small></div><span class="chev"><svg class="i"><use href="#i-chev"/></svg></span></a>
+    </div>
+    <div class="rodape" id="rodape"></div>
+    <div style="text-align:center"><button class="botao perigo" id="b-sair"><svg class="i"><use href="#i-power"/></svg>Encerrar o Segunda Tela</button></div>
+  </section>
 </div>
+</main>
 </div>
 
 <div class="fundo" id="j-pin"><div class="janela">
@@ -354,8 +504,17 @@ svg.i { width: 24px; height: 24px; fill: currentColor; flex: none; }
       `<button class="chip" data-copia="${esc(e.ip)}">${ic("wifi")}<span>${esc(e.ip || "sem rede")}:${e.porta}</span>${ic("copia").replace('class="i"', 'class="i copia"')}</button>` +
       (e.pin ? `<span class="chip">${ic("key")}<span>PIN ativo</span></span>` : "");
 
-    // tablet conectado
-    $("#sec-tablet").classList.toggle("oculto", !(e.conectado && s));
+    // tablet conectado (ou instruções de como conectar)
+    $("#r-tablet").textContent = e.conectado && s ? "Tablet conectado" : "Como conectar";
+    $("#mini-txt").textContent = e.conectado ? "Tablet conectado" : "Aguardando o tablet";
+    $("#l-versao").textContent = `Versão ${e.versao}`;
+    $("#s-versao").textContent = `Versão ${e.versao} · build ${e.build}`;
+    if (!(e.conectado && s)) {
+      $("#c-tablet").innerHTML = `<ol class="passos">` +
+        `<li><div>Deixe o PC e o tablet na mesma rede Wi‑Fi<small>Ou use a conexão direta, sem roteador.</small></div></li>` +
+        `<li><div>Abra o app Segunda Tela no tablet<small>Este PC aparece na lista, é só tocar.</small></div></li>` +
+        `<li><div>Se não aparecer, digite o endereço<small>${esc(e.ip || "—")} (porta ${e.porta})${e.pin ? " e o PIN" : ""}.</small></div></li></ol>`;
+    }
     if (e.conectado && s) {
       $("#c-tablet").innerHTML =
         `<div class="linha"><div class="icone ok">${ic("tablet")}</div><div class="txt"><b>Tablet</b><small>${esc(s.cliente)}</small></div></div>` +
@@ -428,6 +587,37 @@ svg.i { width: 24px; height: 24px; fill: currentColor; flex: none; }
   const log = async () => { try { const l = await api("/api/log"); $("#log").textContent = l.linhas.length ? l.linhas.join("\n") : "O registro está vazio."; const el = $("#log"); el.scrollTop = el.scrollHeight; } catch (_) {} };
   $("#b-log-atualiza").addEventListener("click", log);
   $("#b-log-copia").addEventListener("click", () => copia($("#log").textContent, "Registro copiado"));
+
+  // ---- navegação (barra lateral, só na janela larga) ----
+  const vaiPara = (pg) => {
+    $$(".pg").forEach(x => x.classList.toggle("ativa", x.dataset.pg === pg));
+    $$("#nav button").forEach(b => b.classList.toggle("on", b.dataset.pg === pg));
+    guarda("pagina", pg);
+    const c = document.querySelector(".conteudo"); if (c) c.scrollTop = 0;
+  };
+  $("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) vaiPara(b.dataset.pg); });
+  const paginas = $$("#nav button").map(b => b.dataset.pg);
+  vaiPara(paginas.includes(le("pagina", "visao")) ? le("pagina", "visao") : "visao");
+  addEventListener("keydown", e => {
+    if (e.altKey && /^[1-6]$/.test(e.key) && paginas[+e.key - 1]) { e.preventDefault(); vaiPara(paginas[+e.key - 1]); }
+    if (e.key === "Escape") $$(".fundo").forEach(f => f.classList.remove("ver"));
+  });
+  const diagnostico = async () => {
+    let linhas = [];
+    try { linhas = (await api("/api/log")).linhas; } catch (_) {}
+    const e = E || {};
+    const t = [
+      `Segunda Tela ${e.versao} (build ${e.build})`,
+      `PC: ${e.nome} · ${e.ip}:${e.porta} · PIN ${e.pin ? "ativo" : "desligado"}`,
+      `Tablet: ${e.conectado && e.sessao ? e.sessao.cliente + " · " + e.sessao.w + "x" + e.sessao.h + " · " + e.sessao.encoder + " · " + e.sessao.resumo : "não conectado"}`,
+      `Conexão direta: ${e.direto ? e.direto.estado + (e.direto.banda ? " " + e.direto.banda : "") + (e.direto.msg ? " (" + e.direto.msg + ")" : "") : "?"}`,
+      `Tela estendida: ${e.tela_estendida ? "pronta" : "não instalada"} · Som: ${e.som ? "disponível" : "indisponível"}`,
+      `Abrir com o Windows: ${e.config && e.config.iniciar_com_windows ? "sim" : "não"}`,
+      "--- registro ---", ...linhas,
+    ].join("\n");
+    copia(t, "Diagnóstico copiado");
+  };
+  $("#b-diag").addEventListener("click", diagnostico);
 
   // ---- atualização periódica ----
   async function carrega() {
