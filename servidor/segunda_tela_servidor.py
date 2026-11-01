@@ -18,11 +18,16 @@ Protocolo:
        resposta binária: pacotes [tipo:1][tamanho:4 BE][dados]
          tipo 0 = JSON {"w","h","encoder"} ; tipo 1 = quadro H.264 (Annex-B)
   GET  /stream?fps=&quality=&w=&h=&modo=...   (MJPEG, compatibilidade)
+  GET  /audio                       som do PC: PCM 16 bits, 48 kHz, estéreo
+  GET  /direto?banda=5|2.4|auto|off liga/desliga a rede direta (hotspot do PC)
   POST /input                       canal de eventos, uma linha por evento
+       o servidor responde "pong t" e, com "clipon", envia "clip <base64>"
+       quando a área de transferência do PC muda
   &pin=1234 quando o servidor foi iniciado com PIN.
 """
 
 import argparse
+import base64
 import io
 import json
 import os
@@ -36,6 +41,9 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+import audio
+import hotspot
+import win_clip
 import win_display
 import win_input
 import tela_virtual
@@ -95,6 +103,7 @@ class Controle:
     """Uma tela por vez (como o Duet): nova conexão substitui a anterior."""
     lock = threading.Lock()
     geracao = 0
+    geracao_som = 0
     sessao = None
     area = None          # (left, top, w, h) da tela mostrada no tablet
     extendido = False
@@ -175,7 +184,8 @@ class Handler(BaseHTTPRequestHandler):
             info = {"app": "segundatela", "versao": VERSAO,
                     "nome": socket.gethostname(), "pin": bool(self.pin),
                     "driver": tela_virtual.instalado(),
-                    "h264": bool(video.caminho_ffmpeg())}
+                    "h264": bool(video.caminho_ffmpeg()),
+                    "som": audio.disponivel(), "direto": _WIN}
             corpo = json.dumps(info).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -191,7 +201,53 @@ class Handler(BaseHTTPRequestHandler):
             if self._pin_ok(qs):
                 self.transmitir_mjpeg(qs)
             return
+        if url.path == "/audio":
+            if self._pin_ok(qs):
+                self.transmitir_audio()
+            return
+        if url.path == "/direto":
+            if self._pin_ok(qs):
+                self.conexao_direta(qs.get("banda", ["5"])[0])
+            return
         self.send_error(404, "Nao encontrado")
+
+    def _json(self, dados):
+        corpo = json.dumps(dados).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(corpo)))
+        self.end_headers()
+        self.wfile.write(corpo)
+
+    # ---------------------------------------------------------- rede direta
+    def conexao_direta(self, banda):
+        if banda == "off":
+            self._json(hotspot.desligar())
+        else:
+            self._json(hotspot.ligar(banda if banda in ("5", "2.4") else "auto"))
+
+    # ---------------------------------------------------------- som
+    def transmitir_audio(self):
+        if not audio.disponivel():
+            self.send_error(503, "Som do PC indisponivel neste servidor")
+            return
+        with Controle.lock:
+            Controle.geracao_som += 1
+            minha = Controle.geracao_som
+        cliente = self.client_address[0]
+        self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        print("[som] %s conectou" % cliente)
+        try:
+            audio.transmitir(self.connection, lambda: Controle.geracao_som == minha)
+        except OSError:
+            pass
+        except Exception as e:  # erro do Windows/soundcard: avisa e encerra
+            print("[som] Não consegui capturar o som: %s" % e)
+        print("[som] %s desconectou" % cliente)
 
     # ---------------------------------------------------------- H.264
     def transmitir_h264(self, qs):
@@ -340,10 +396,14 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         print("[controle] %s conectou (toque/caneta/teclado)" % self.client_address[0])
+        self._trava = threading.Lock()
+        self._vivo = True
+        self._clip = {"ultimo": None, "ver": None, "ligado": False}
         try:
             self.loop_input()
         except (OSError, ValueError):
             pass
+        self._vivo = False
         win_input.touch_reset()
         print("[controle] %s desconectou" % self.client_address[0])
 
@@ -361,10 +421,47 @@ class Handler(BaseHTTPRequestHandler):
                     continue
                 linha = linha.rsplit("|", 1)[0]
             if linha.startswith("png "):  # medição de atraso pelo app
-                self.wfile.write(("pong %s\n" % linha[4:]).encode())
-                self.wfile.flush()
+                self._enviar("pong %s\n" % linha[4:])
+                continue
+            if linha == "clipon":  # o app quer a área de transferência compartilhada
+                if not self._clip["ligado"]:
+                    self._clip["ligado"] = True
+                    threading.Thread(target=self._vigiar_clip, daemon=True).start()
+                continue
+            if linha.startswith("clip "):  # copiado no tablet -> PC
+                try:
+                    texto = base64.b64decode(linha[5:]).decode("utf-8")
+                except ValueError:
+                    continue
+                self._clip["ultimo"] = texto
+                win_clip.escrever(texto)
+                self._clip["ver"] = win_clip.versao()
                 continue
             aplicar_evento(linha)
+
+    def _enviar(self, texto):
+        with self._trava:
+            self.wfile.write(texto.encode("utf-8"))
+            self.wfile.flush()
+
+    def _vigiar_clip(self):
+        """Copiou algo no PC: manda para o tablet (texto até ~500 KB)."""
+        c = self._clip
+        c["ver"] = win_clip.versao()
+        while self._vivo:
+            time.sleep(0.7)
+            v = win_clip.versao()
+            if v == c["ver"]:
+                continue
+            c["ver"] = v
+            texto = win_clip.ler()
+            if not texto or texto == c["ultimo"] or len(texto) > 500000:
+                continue
+            c["ultimo"] = texto
+            try:
+                self._enviar("clip %s\n" % base64.b64encode(texto.encode("utf-8")).decode())
+            except OSError:
+                break
 
 
 def aplicar_evento(linha):
@@ -536,6 +633,24 @@ def rodar_bandeja(ao_sair):
     def desligar(_icon, _item):
         tela_virtual.desativar()
 
+    def direto(banda):
+        def acao(icon, _item):
+            def rodar():
+                r = hotspot.ligar(banda)
+                if r.get("ok") and r.get("ativo"):
+                    msg = "Rede %s ligada (%s). Senha: %s" % (r["ssid"], r.get("banda_nome") or "?", r["senha"])
+                else:
+                    msg = "Não consegui ligar a rede direta: %s" % r.get("msg", "")
+                try:
+                    icon.notify(msg, "Conexão direta")
+                except Exception:
+                    pass
+            threading.Thread(target=rodar, daemon=True).start()
+        return acao
+
+    def desligar_direto(_icon, _item):
+        threading.Thread(target=hotspot.desligar, daemon=True).start()
+
     def sair(icon, _item):
         ao_sair()
         icon.stop()
@@ -544,6 +659,11 @@ def rodar_bandeja(ao_sair):
         pystray.MenuItem("Segunda Tela " + VERSAO, None, enabled=False),
         pystray.MenuItem(estado, None, enabled=False),
         pystray.MenuItem("Desligar tela estendida", desligar),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Conexão direta 5 GHz", direto("5")),
+        pystray.MenuItem("Conexão direta 2,4 GHz", direto("2.4")),
+        pystray.MenuItem("Desligar conexão direta", desligar_direto),
+        pystray.Menu.SEPARATOR,
         pystray.MenuItem("Sair", sair))
     pystray.Icon("segundatela", img, "Segunda Tela", menu).run()
     return True
@@ -574,6 +694,8 @@ def main():
                    help="remove o monitor virtual (pede administrador)")
     p.add_argument("--iniciar-com-windows", choices=["sim", "nao"],
                    help="abrir o servidor junto com o Windows")
+    p.add_argument("--direto", choices=["5", "2.4", "auto"],
+                   help="ligar a rede direta (hotspot do PC) ao abrir")
     a = p.parse_args()
 
     if a.instalar_driver:  # processo elevado (UAC)
@@ -627,14 +749,21 @@ def main():
     print(" Feche esta janela (ou Ctrl+C) para encerrar.")
     print("=" * 56)
 
+    print(" Som do PC no tablet: %s" % ("pronto" if audio.disponivel() else "indisponível"))
+    print(" Conexão direta: pelo ícone da bandeja ou pelo app (5 GHz ou 2,4 GHz).")
+    if a.direto:
+        hotspot.ligar(a.direto)
+
     zc, info = anunciar_mdns(a.porta)
 
     def limpar():
         with Controle.lock:
             if Controle.sessao:
                 Controle.sessao.parar()
+            Controle.geracao_som += 1
         tela_virtual.desativar()
         encerrar_adb()
+        hotspot.desligar_se_nosso()
 
     if _WIN:
         # Fechar a janela pelo X: desliga o monitor virtual e o adb antes de sair.
