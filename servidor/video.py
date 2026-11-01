@@ -84,12 +84,20 @@ def _taxa_args(o, familia):
     return ["-crf", str(o.cq), "-maxrate", pico, "-bufsize", buf]
 
 
+# Cor: converte RGB -> YUV pela matriz BT.709 (faixa limitada, a que os decodificadores
+# de celular/tablet esperam para vídeo HD). Sem isso o ffmpeg usa BT.601 e não avisa
+# o decodificador, e a imagem aparece lavada. A mesma marcação vai no fluxo (VUI).
+_RGB_YUV = "scale=out_color_matrix=bt709:out_range=tv"
+_COR_ARGS = ["-colorspace", "bt709", "-color_primaries", "bt709",
+             "-color_trc", "bt709", "-color_range", "tv"]
+
+
 def _encoders(o, codec, origem_gpu):
     """Lista de (nome, filtro, args do encoder) na ordem de preferência."""
     hevc = codec == "h265"
     gop = str(max(1, int(o.fps * o.gop)))
     comum = ["-g", gop, "-bf", "0"]
-    sw = "hwdownload,format=bgra,format=yuv420p" if origem_gpu else "format=yuv420p"
+    sw = (("hwdownload,format=bgra," if origem_gpu else "") + _RGB_YUV + ",format=yuv420p")
     perfil = ["-profile:v", "main" if hevc else "high"]
     nv_preset = {"rapida": "p1", "equilibrada": "p3", "qualidade": "p5"}[o.vel]
     nv_tune = "ull" if o.vel == "rapida" else "ll"
@@ -127,11 +135,11 @@ def _encoders(o, codec, origem_gpu):
         nome_cpu = "CPU (x264)"
 
     return [
-        ("NVIDIA NVENC", None if origem_gpu else "format=yuv420p", nv),
-        ("AMD AMF", None if origem_gpu else "format=yuv420p", amf),
+        ("NVIDIA NVENC", None if origem_gpu else _RGB_YUV + ",format=yuv420p", nv),
+        ("AMD AMF", None if origem_gpu else _RGB_YUV + ",format=yuv420p", amf),
         ("Intel QuickSync",
          "hwmap=derive_device=qsv,format=qsv,vpp_qsv=format=nv12"
-         if origem_gpu else "format=nv12", qsv),
+         if origem_gpu else _RGB_YUV + ",format=nv12", qsv),
         (nome_cpu, sw, cpu),
     ]
 
@@ -173,6 +181,7 @@ class Sessao:
         if filtro:
             cmd += ["-vf", filtro]
         cmd += enc
+        cmd += _COR_ARGS
         cmd += ["-an", "-flush_packets", "1", "-flvflags", "no_duration_filesize",
                 "-f", "flv", "pipe:1"]
         return cmd
