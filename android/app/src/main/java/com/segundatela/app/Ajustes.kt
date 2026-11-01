@@ -37,6 +37,8 @@ data class Ajustes(
     var som: Boolean = false,           // som do PC no tablet
     var clipboard: Boolean = true,      // área de transferência compartilhada
     var adaptativo: Boolean = false,    // baixa/sobe o bitrate sozinho durante o uso
+    var barraPorApp: Boolean = true,    // barra de atalhos diferente para cada programa do PC
+    var gestosBorda: Boolean = true,    // deslizar da borda abre a barra e o menu
     // Conexão
     var porta: Int = 8080,
     var pin: String = "",
@@ -62,6 +64,7 @@ data class Ajustes(
             .putString(pre + "barraLado", barraLado).putString(pre + "barraItens", barraItens)
             .putBoolean(pre + "som", som).putBoolean(pre + "clipboard", clipboard)
             .putBoolean(pre + "adaptativo", adaptativo)
+            .putBoolean(pre + "barraPorApp", barraPorApp).putBoolean(pre + "gestosBorda", gestosBorda)
             .putInt(pre + "porta3", porta).putString(pre + "pin", pin)
             .putBoolean(pre + "autoconectar", autoconectar)
             .putString(pre + "host", ultimoHost)
@@ -142,6 +145,8 @@ data class Ajustes(
             som = p.getBoolean(pre + "som", false),
             clipboard = p.getBoolean(pre + "clipboard", true),
             adaptativo = p.getBoolean(pre + "adaptativo", false),
+            barraPorApp = p.getBoolean(pre + "barraPorApp", true),
+            gestosBorda = p.getBoolean(pre + "gestosBorda", true),
             porta = p.getInt(pre + "porta3", 8080).let { if (it in 1..65535) it else 8080 },
             pin = p.getString(pre + "pin", "")!!,
             autoconectar = p.getBoolean(pre + "autoconectar", false),

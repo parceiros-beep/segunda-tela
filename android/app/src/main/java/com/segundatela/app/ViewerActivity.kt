@@ -98,6 +98,14 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
     private var segundosBons = 0
     private var ultimoAjuste = 0L
 
+    // Barra por programa e gestos de borda
+    private var programaAtual: String? = null
+    private var abreBarra = "›"
+    private var fechaBarra = "‹"
+    private var borda = ' '   // 'e' esquerda, 'd' direita, 't' topo, 'x' já usado
+    private var bordaX = 0f
+    private var bordaY = 0f
+
     // Modificadores fixos da barra lateral (Ctrl/Shift/Alt pressionados)
     private val modificadores = HashMap<Int, View>()
     private var selfEdit = false
@@ -125,6 +133,7 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
 
         input = InputSender(host, port, aj.pin).also {
             it.clipboard = aj.clipboard
+            it.programas = aj.barraPorApp
             it.start()
         }
 
@@ -151,6 +160,13 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
             getSystemService(ClipboardManager::class.java).addPrimaryClipChangedListener(ouvinteClip)
         }
         if (aj.som) ligarSom(true)
+        if (aj.barraPorApp) {
+            input?.aoPrograma = { nome ->
+                runOnUiThread {
+                    if (nome != programaAtual) { programaAtual = nome; preencherBarra() }
+                }
+            }
+        }
         montarBarra()
         montarMenu()
         mostrarEstatisticas(aj.estatisticas)
@@ -165,6 +181,8 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         b.btnKeyboard.setOnClickListener { abrirMenu(false); abrirTeclado() }
         b.btnAjustes.setOnClickListener { abrirAjustesVivo() }
         b.btnDiag.setOnClickListener { copiarDiagnostico() }
+        b.btnBarraApp.setOnClickListener { escolherBarraDoPrograma() }
+        b.btnBarraApp.visibility = if (aj.barraPorApp) View.VISIBLE else View.GONE
 
         val opcoes = listOf(
             "nativo" to R.string.touch_native, "mouse" to R.string.touch_mouse,
@@ -224,6 +242,8 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
         b.scrim.visibility = if (abrir) View.VISIBLE else View.GONE
         if (abrir) {
             b.lblInfo.text = info.ifEmpty { getString(R.string.connecting) }
+            b.btnBarraApp.text = getString(R.string.bar_for_app,
+                programaAtual ?: getString(R.string.bar_no_app))
             b.status.visibility = View.GONE
             ui.removeCallbacks(hideStatus)
         } else {
@@ -302,6 +322,35 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         if (!aj.compat && aj.orientacao == "auto") reiniciarTransmissao()
+    }
+
+    // ================================================== barra por programa
+    private fun escolherBarraDoPrograma() {
+        val prog = programaAtual
+        if (prog == null) {
+            Toast.makeText(this, R.string.bar_no_app_hint, Toast.LENGTH_LONG).show()
+            return
+        }
+        val itens = Atalhos.todos
+        val atuais = itensDaBarra().map { it.id }.toSet()
+        val marcados = BooleanArray(itens.size) { itens[it].id in atuais }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.bar_for_app, prog))
+            .setMultiChoiceItems(itens.map { it.nome }.toTypedArray(), marcados) { _, i, v ->
+                marcados[i] = v
+            }
+            .setPositiveButton(R.string.ok) { _, _ ->
+                val ids = itens.filterIndexed { i, _ -> marcados[i] }.map { it.id }
+                prefs.edit().putString("barraApp:$prog",
+                    if (ids.isEmpty()) "-" else ids.joinToString(",")).apply()
+                preencherBarra()
+            }
+            .setNeutralButton(R.string.bar_use_default) { _, _ ->
+                prefs.edit().remove("barraApp:$prog").apply()
+                preencherBarra()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     // ================================================ som e área de transferência
@@ -406,16 +455,40 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
             b.btnSettings.layoutParams = (b.btnSettings.layoutParams as
                 android.widget.FrameLayout.LayoutParams).apply { gravity = Gravity.TOP or Gravity.START }
         }
-        val abre = if (direita) "‹" else "›"
-        val fecha = if (direita) "›" else "‹"
-        b.sidebarHandle.text = fecha
-        b.sidebarHandle.setOnClickListener {
+        abreBarra = if (direita) "‹" else "›"
+        fechaBarra = if (direita) "›" else "‹"
+        b.sidebarHandle.text = fechaBarra
+        b.sidebarHandle.setOnClickListener { alternarBarra() }
+        preencherBarra()
+    }
+
+    private fun alternarBarra() {
+        if (b.sidebarWrap.visibility != View.VISIBLE) {
+            b.sidebarWrap.visibility = View.VISIBLE
+            b.sidebarScroll.visibility = View.VISIBLE
+        } else {
             val aberto = b.sidebarScroll.visibility == View.VISIBLE
             b.sidebarScroll.visibility = if (aberto) View.GONE else View.VISIBLE
-            b.sidebarHandle.text = if (aberto) abre else fecha
         }
+        b.sidebarHandle.text =
+            if (b.sidebarScroll.visibility == View.VISIBLE) fechaBarra else abreBarra
+    }
+
+    /** Botões da barra: os do programa aberto no PC, se houver, ou os padrão. */
+    private fun itensDaBarra(): List<Atalhos.Item> {
+        val prog = programaAtual
+        if (aj.barraPorApp && prog != null) {
+            prefs.getString("barraApp:$prog", null)?.let { return Atalhos.escolhidos(it) }
+        }
+        return Atalhos.escolhidos(aj)
+    }
+
+    private fun preencherBarra() {
+        soltarModificadores()
+        modificadores.clear()
+        b.sidebar.removeAllViews()
         var grupo = -1
-        for (item in Atalhos.escolhidos(aj)) {
+        for (item in itensDaBarra()) {
             if (grupo >= 0 && item.grupo != grupo) separador()
             grupo = item.grupo
             when (item.tipo) {
@@ -488,6 +561,7 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
 
     private fun onTouch(e: MotionEvent) {
         if (menuAberto()) return
+        if (aj.gestosBorda && gestoBorda(e)) return
         // Mesa digitalizadora: só a caneta age, sempre.
         if (ehCaneta(e) && (aj.caneta || aj.toque == "mesa")) { onCaneta(e); return }
         if (aj.toque == "mesa" || aj.toque == "desligado") return
@@ -498,6 +572,51 @@ class ViewerActivity : AppCompatActivity(), H264View.Listener, MjpegView.Listene
             "mouse" -> toqueMouse(e)
             "touchpad" -> toqueTouchpad(e)
         }
+    }
+
+    /**
+     * Deslizar a partir da borda (faixa de 16 dp): das laterais abre/fecha a
+     * barra de atalhos; de cima abre o menu. Toques que começam nessa faixa
+     * ficam reservados para o gesto e não vão para o PC.
+     */
+    private fun gestoBorda(e: MotionEvent): Boolean {
+        val dens = resources.displayMetrics.density
+        val zona = 16 * dens
+        val limiar = 60 * dens
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                borda = when {
+                    e.rawX < zona -> 'e'
+                    e.rawX > b.root.width - zona -> 'd'
+                    e.rawY < zona -> 't'
+                    else -> ' '
+                }
+                bordaX = e.rawX; bordaY = e.rawY
+                return borda != ' '
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (borda == ' ') return false
+                if (borda == 'x') return true
+                val dx = e.rawX - bordaX
+                val dy = e.rawY - bordaY
+                val feito = when (borda) {
+                    'e' -> dx > limiar
+                    'd' -> -dx > limiar
+                    else -> dy > limiar
+                }
+                if (feito) {
+                    if (borda == 't') abrirMenu(true) else alternarBarra()
+                    borda = 'x'
+                }
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                val era = borda != ' '
+                borda = ' '
+                return era
+            }
+        }
+        return borda != ' '
     }
 
     private fun toqueNativo(e: MotionEvent) {

@@ -55,7 +55,12 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
         }
 
         val pendente = intent.getStringExtra("conectarHost")
-        if (pendente != null) {
+        val diretoAgora = intent.getStringExtra("diretoAgora")
+        if (diretoAgora != null) {
+            // Aberto pelo botão "Conexão direta" do painel rápido.
+            intent.removeExtra("diretoAgora")
+            b.root.post { conexaoDireta(diretoAgora) }
+        } else if (pendente != null) {
             // Voltou de um recarregamento com os ajustes desse PC: continua a conexão.
             intent.removeExtra("conectarHost")
             b.root.post { conectar(pendente) }
@@ -198,6 +203,7 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
             Toast.makeText(this, getString(R.string.err_host), Toast.LENGTH_SHORT).show()
             return
         }
+        prefs.edit().putString("direto_banda", banda).apply()
         Toast.makeText(this, R.string.direct_starting, Toast.LENGTH_LONG).show()
         thread(isDaemon = true) {
             var ssid = salvoSsid

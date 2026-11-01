@@ -257,6 +257,8 @@ class Painel(
             "esquerda" to ctx.getString(R.string.side_left),
             "direita" to ctx.getString(R.string.side_right)), aj.barraLado) { aj.barraLado = it }
         botoesBarra(pai)
+        chave(pai, R.string.opt_bar_per_app, R.string.d_bar_per_app, aj.barraPorApp) { aj.barraPorApp = it }
+        chave(pai, R.string.opt_edge, R.string.d_edge, aj.gestosBorda) { aj.gestosBorda = it }
     }
 
     /** Escolha de quais botões aparecem na barra de atalhos. */

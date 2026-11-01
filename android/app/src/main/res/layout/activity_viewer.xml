@@ -215,6 +215,18 @@
             app:strokeColor="@color/stroke" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBarraApp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:text="@string/opt_bar_items"
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            app:cornerRadius="26dp"
+            app:strokeColor="@color/stroke" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDiag"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"

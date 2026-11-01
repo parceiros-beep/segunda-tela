@@ -198,4 +198,14 @@ Sugestão: perfil %2$s. Quer aplicar?</string>
     <string name="opt_adaptive">Bitrate automático durante o uso</string>
     <string name="d_adaptive">Se a rede piorar, baixa o bitrate sozinho; quando melhora, sobe de volta até o valor escolhido. Cada ajuste faz a imagem piscar por um instante. Recomendado: ligado no Wi‑Fi.</string>
     <string name="adaptive_changed">Rede mudou: bitrate ajustado para %1$d Mbps</string>
+    <!-- Barra por programa, gestos de borda e botão de conexão direta -->
+    <string name="opt_bar_per_app">Barra diferente para cada programa</string>
+    <string name="d_bar_per_app">A barra troca os botões conforme o programa aberto no PC (Photoshop, Excel…). Escolha os botões de cada um no menu, durante o uso. Recomendado: ligado.</string>
+    <string name="opt_edge">Gestos de borda</string>
+    <string name="d_edge">Deslizar a partir da lateral abre ou fecha a barra; de cima, abre o menu. Toques que começam bem na borda ficam para o gesto. Recomendado: ligado.</string>
+    <string name="bar_for_app">Botões da barra para %1$s</string>
+    <string name="bar_no_app">o programa aberto</string>
+    <string name="bar_no_app_hint">Ainda não sei qual programa está aberto no PC. Clique numa janela do PC e tente de novo.</string>
+    <string name="bar_use_default">Usar a padrão</string>
+    <string name="tile_direct_label">Conexão direta</string>
 </resources>

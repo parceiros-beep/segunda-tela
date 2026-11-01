@@ -32,9 +32,11 @@ object Atalhos {
     )
 
     /** Vazio = todos; "-" = nenhum. */
-    fun escolhidos(aj: Ajustes): List<Item> {
-        if (aj.barraItens.isBlank()) return todos
-        val ids = aj.barraItens.split(",").toSet()
+    fun escolhidos(aj: Ajustes): List<Item> = escolhidos(aj.barraItens)
+
+    fun escolhidos(lista: String): List<Item> {
+        if (lista.isBlank()) return todos
+        val ids = lista.split(",").toSet()
         return todos.filter { it.id in ids }
     }
 }

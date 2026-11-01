@@ -28,6 +28,11 @@ Transforma o tablet ou celular Android num **monitor de verdade** para o PC com 
 | Ajustes por PC | O app lembra a configuração usada com cada computador. |
 | Barra personalizável | Você escolhe quais botões aparecem na barra de atalhos. |
 | Bitrate automático | Durante o uso, baixa o bitrate quando a rede piora e sobe quando melhora (opcional). |
+| Barra por programa | A barra de atalhos troca os botões conforme o programa aberto no PC. |
+| Gestos de borda | Deslizar da lateral abre a barra; de cima, abre o menu. |
+| QR code da rede direta | Pela bandeja do PC: a câmera do tablet lê e entra na rede. |
+| Conexão direta ao abrir | Pela bandeja: o PC liga a rede direta sozinho quando o servidor abre. |
+| Botão "Conexão direta" | Segundo botão no painel rápido do Android. |
 
 ## Instalação
 

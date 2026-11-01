@@ -59,6 +59,7 @@ class InputSender(
             o.write(req.toByteArray(Charsets.ISO_8859_1))
             // A cada (re)conexão, pede de novo a área de transferência compartilhada.
             if (clipboard) o.write(comPin("clipon").toByteArray(Charsets.UTF_8))
+            if (programas) o.write(comPin("appon").toByteArray(Charsets.UTF_8))
             o.flush()
             socket = s; out = o
             lerRespostas(s)
@@ -74,6 +75,10 @@ class InputSender(
     @Volatile var clipboard = false
     /** Texto copiado no PC chegando ao tablet. */
     var aoClip: ((String) -> Unit)? = null
+
+    /** Avisos do programa em primeiro plano no PC: ligar antes de start(). */
+    @Volatile var programas = false
+    var aoPrograma: ((String) -> Unit)? = null
 
     fun clip(texto: String) {
         val b64 = android.util.Base64.encodeToString(
@@ -94,6 +99,11 @@ class InputSender(
                                 android.util.Base64.DEFAULT)
                             aoClip?.invoke(String(bytes, Charsets.UTF_8))
                         } catch (_: IllegalArgumentException) {}
+                        continue
+                    }
+                    val a = l.indexOf("app ")
+                    if (a >= 0) {
+                        aoPrograma?.invoke(l.substring(a + 4).trim())
                         continue
                     }
                     val i = l.indexOf("pong ")
