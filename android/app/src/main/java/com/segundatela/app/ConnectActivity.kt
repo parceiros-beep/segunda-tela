@@ -28,6 +28,16 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
     private val seen = HashSet<String>()
     @Volatile private var usbOk = false
 
+    // Para entrar na rede do PC, o Android exige a permissão de localização.
+    private var bandaPendente: String? = null
+    private val pedirLocalizacao = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        val banda = bandaPendente
+        bandaPendente = null
+        if (banda != null) conexaoDireta(banda, permissaoPedida = true)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         b = ActivityConnectBinding.inflate(layoutInflater)
@@ -193,7 +203,15 @@ class ConnectActivity : AppCompatActivity(), NsdDiscovery.Listener {
      * 2) Entra nessa rede e conecta no PC (192.168.137.1).
      * Se o PC não responder, usa a rede salva da última vez (ligada pela bandeja).
      */
-    private fun conexaoDireta(banda: String) {
+    private fun conexaoDireta(banda: String, permissaoPedida: Boolean = false) {
+        if (!permissaoPedida && checkSelfPermission(
+                android.Manifest.permission.ACCESS_FINE_LOCATION) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            bandaPendente = banda
+            Toast.makeText(this, R.string.direct_location, Toast.LENGTH_LONG).show()
+            pedirLocalizacao.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            return
+        }
         val host = b.editHost.text.toString().trim().ifEmpty { aj.ultimoHost }
         val porta = portaDigitada()
         val pin = b.editPin.text.toString().trim()

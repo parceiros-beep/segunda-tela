@@ -208,4 +208,5 @@ Sugestão: perfil %2$s. Quer aplicar?</string>
     <string name="bar_no_app_hint">Ainda não sei qual programa está aberto no PC. Clique numa janela do PC e tente de novo.</string>
     <string name="bar_use_default">Usar a padrão</string>
     <string name="tile_direct_label">Conexão direta</string>
+    <string name="direct_location">Para entrar na rede do PC, o Android pede a permissão de localização. É uma regra dele para redes Wi‑Fi; o app não usa a sua posição.</string>
 </resources>
