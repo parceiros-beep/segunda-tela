@@ -644,7 +644,7 @@ def rodar_bandeja(ao_sair):
     d.rectangle((26, 46, 38, 54), fill=(3, 129, 254, 255))
     d.rectangle((18, 54, 46, 58), fill=(3, 129, 254, 255))
 
-    def estado(_icon, _item):
+    def estado(_item):  # texto dinâmico: o pystray passa só o item
         with Controle.lock:
             em_uso = Controle.sessao is not None
         return "Tablet conectado" if em_uso else "Aguardando o tablet"
@@ -818,8 +818,16 @@ def main():
     threading.Thread(target=vigiar_usb, args=(a.porta,), daemon=True).start()
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
-        # Ícone na bandeja do Windows (bloqueia até "Sair"). Sem pystray, fica no console.
-        if not (_WIN and rodar_bandeja(limpar)):
+        # Ícone na bandeja do Windows (bloqueia até "Sair"). Sem pystray, ou se a
+        # bandeja falhar por qualquer motivo, o servidor continua pelo console.
+        usou_bandeja = False
+        if _WIN:
+            try:
+                usou_bandeja = rodar_bandeja(limpar)
+            except Exception as e:
+                print("[bandeja] Não consegui criar o ícone (%s: %s). "
+                      "Seguindo só com o console." % (type(e).__name__, e))
+        if not usou_bandeja:
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:
