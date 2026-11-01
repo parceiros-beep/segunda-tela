@@ -21,8 +21,9 @@ Protocolo:
   GET  /audio                       som do PC: PCM 16 bits, 48 kHz, estéreo
   GET  /direto?banda=5|2.4|auto|off liga/desliga a rede direta (hotspot do PC)
   POST /input                       canal de eventos, uma linha por evento
-       o servidor responde "pong t" e, com "clipon", envia "clip <base64>"
-       quando a área de transferência do PC muda
+       o servidor responde "pong t"; com "clipon" envia "clip <base64>"
+       quando a área de transferência do PC muda; com "appon" envia
+       "app <programa.exe>" quando muda o programa em primeiro plano
   &pin=1234 quando o servidor foi iniciado com PIN.
 """
 
@@ -42,7 +43,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import audio
+import config
 import hotspot
+import janela
 import win_clip
 import win_display
 import win_input
@@ -428,6 +431,9 @@ class Handler(BaseHTTPRequestHandler):
                     self._clip["ligado"] = True
                     threading.Thread(target=self._vigiar_clip, daemon=True).start()
                 continue
+            if linha == "appon":  # o app troca a barra conforme o programa aberto
+                threading.Thread(target=self._vigiar_programa, daemon=True).start()
+                continue
             if linha.startswith("clip "):  # copiado no tablet -> PC
                 try:
                     texto = base64.b64decode(linha[5:]).decode("utf-8")
@@ -443,6 +449,19 @@ class Handler(BaseHTTPRequestHandler):
         with self._trava:
             self.wfile.write(texto.encode("utf-8"))
             self.wfile.flush()
+
+    def _vigiar_programa(self):
+        """Avisa o tablet quando muda o programa em primeiro plano no PC."""
+        ultimo = None
+        while self._vivo:
+            nome = janela.programa_atual()
+            if nome and nome != ultimo:
+                ultimo = nome
+                try:
+                    self._enviar("app %s\n" % nome)
+                except OSError:
+                    break
+            time.sleep(1.0)
 
     def _vigiar_clip(self):
         """Copiou algo no PC: manda para o tablet (texto até ~500 KB)."""
@@ -651,6 +670,17 @@ def rodar_bandeja(ao_sair):
     def desligar_direto(_icon, _item):
         threading.Thread(target=hotspot.desligar, daemon=True).start()
 
+    def qr(_icon, _item):
+        threading.Thread(target=hotspot.mostrar_qr, daemon=True).start()
+
+    def ao_abrir(banda):
+        def acao(_icon, _item):
+            config.gravar("direto_ao_abrir", banda)
+        return acao
+
+    def marcado(banda):
+        return lambda _item: config.ler("direto_ao_abrir") == banda
+
     def sair(icon, _item):
         ao_sair()
         icon.stop()
@@ -663,6 +693,11 @@ def rodar_bandeja(ao_sair):
         pystray.MenuItem("Conexão direta 5 GHz", direto("5")),
         pystray.MenuItem("Conexão direta 2,4 GHz", direto("2.4")),
         pystray.MenuItem("Desligar conexão direta", desligar_direto),
+        pystray.MenuItem("Mostrar QR code da rede direta", qr),
+        pystray.MenuItem("Ligar a conexão direta ao abrir", pystray.Menu(
+            pystray.MenuItem("Não", ao_abrir(None), checked=marcado(None), radio=True),
+            pystray.MenuItem("5 GHz", ao_abrir("5"), checked=marcado("5"), radio=True),
+            pystray.MenuItem("2,4 GHz", ao_abrir("2.4"), checked=marcado("2.4"), radio=True))),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Sair", sair))
     pystray.Icon("segundatela", img, "Segunda Tela", menu).run()
@@ -751,8 +786,10 @@ def main():
 
     print(" Som do PC no tablet: %s" % ("pronto" if audio.disponivel() else "indisponível"))
     print(" Conexão direta: pelo ícone da bandeja ou pelo app (5 GHz ou 2,4 GHz).")
-    if a.direto:
-        hotspot.ligar(a.direto)
+    # Conexão direta ao abrir: pelo parâmetro ou pela opção salva na bandeja.
+    banda_inicial = a.direto or config.ler("direto_ao_abrir")
+    if banda_inicial:
+        threading.Thread(target=hotspot.ligar, args=(banda_inicial,), daemon=True).start()
 
     zc, info = anunciar_mdns(a.porta)
 

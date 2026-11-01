@@ -142,6 +142,26 @@ def desligar():
     return res
 
 
+def mostrar_qr():
+    """Abre um QR code com nome e senha da rede direta (a câmera do Android
+    conecta lendo o código). Sem a biblioteca, abre um texto com os dados."""
+    c = credenciais()
+    pasta = os.path.dirname(_arquivo())
+    texto = "WIFI:T:WPA;S:%s;P:%s;;" % (c["ssid"], c["senha"])
+    try:
+        import qrcode
+        img = qrcode.make(texto)
+        caminho = os.path.join(pasta, "conexao_direta_qr.png")
+        img.save(caminho)
+    except Exception:
+        caminho = os.path.join(pasta, "conexao_direta.txt")
+        with open(caminho, "w", encoding="utf-8") as f:
+            f.write("Rede: %s\nSenha: %s\n" % (c["ssid"], c["senha"]))
+    if _WIN:
+        os.startfile(caminho)
+    return caminho
+
+
 def desligar_se_nosso():
     """Ao fechar o servidor: só desliga o hotspot se fomos nós que ligamos."""
     if _ligado_por_nos:
