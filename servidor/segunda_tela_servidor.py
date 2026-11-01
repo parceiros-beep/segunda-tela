@@ -32,6 +32,7 @@ import base64
 import io
 import json
 import os
+import select
 import shutil
 import socket
 import struct
@@ -58,8 +59,31 @@ except ImportError:  # descoberta automática é opcional
     Zeroconf = None
 
 BOUNDARY = "segundatela"
-VERSAO = "3.0"
+VERSAO = "3.8"
+try:  # o CI grava este arquivo com o número da compilação e o commit
+    from versao_build import BUILD
+except ImportError:
+    BUILD = "desenvolvimento"
 _WIN = sys.platform == "win32"
+
+
+class Servidor(ThreadingHTTPServer):
+    # No Windows, SO_REUSEADDR deixa DOIS servidores abrirem a mesma porta sem
+    # erro (brigando por monitor virtual e ffmpeg). Desligado, a 2ª instância
+    # avisa que a porta está em uso.
+    allow_reuse_address = not _WIN
+    daemon_threads = True
+
+
+def manter_vivo(sock):
+    """Detecta tablet que sumiu sem avisar (Wi-Fi caiu) em ~10 s, sem timeout
+    de envio: um timeout no socket derrubava o vídeo quando o Wi-Fi engasgava."""
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        if _WIN:
+            sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, 10000, 3000))
+    except (OSError, AttributeError, ValueError):
+        pass
 
 
 def ip_principal():
@@ -126,10 +150,12 @@ class Controle:
         def depois():
             time.sleep(6)
             with cls.lock:
-                if cls.geracao == geracao and cls.extendido:
+                desligar = cls.geracao == geracao and cls.extendido
+                if desligar:
                     cls.extendido = False
-                    win_input.touch_reset()
-                    tela_virtual.desativar()
+            if desligar:  # fora do lock: o Windows avisa todas as janelas da mudança
+                win_input.touch_reset()
+                tela_virtual.desativar()
         threading.Thread(target=depois, daemon=True).start()
 
 
@@ -184,7 +210,7 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         qs = parse_qs(url.query)
         if url.path in ("/", "/status"):
-            info = {"app": "segundatela", "versao": VERSAO,
+            info = {"app": "segundatela", "versao": VERSAO, "build": BUILD,
                     "nome": socket.gethostname(), "pin": bool(self.pin),
                     "driver": tela_virtual.instalado(),
                     "h264": bool(video.caminho_ffmpeg()),
@@ -239,6 +265,7 @@ class Handler(BaseHTTPRequestHandler):
             minha = Controle.geracao_som
         cliente = self.client_address[0]
         self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        manter_vivo(self.connection)
         self.send_response(200)
         self.send_header("Content-Type", "application/octet-stream")
         self.send_header("Connection", "close")
@@ -268,6 +295,7 @@ class Handler(BaseHTTPRequestHandler):
         alvo = preparar_tela(qs)
 
         self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        manter_vivo(self.connection)
         try:
             self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1 << 20)
         except OSError:
@@ -314,20 +342,23 @@ class Handler(BaseHTTPRequestHandler):
                 pacote(2, "Nenhum encoder de vídeo funcionou neste PC. "
                           "Use o modo Compatível.".encode())
                 return
-            # Espera o fim (desconexão ou ffmpeg encerrado); detecta queda
-            # do cliente lendo o socket.
-            sock.settimeout(1.0)
+            # Espera o fim (desconexão ou ffmpeg encerrado). O socket fica sem
+            # timeout: ele também valia para o envio dos quadros e derrubava a
+            # transmissão quando o Wi-Fi engasgava por mais de 1 s.
             while not fim.is_set():
-                try:
-                    if sock.recv(1) == b"":
+                pronto, _, _ = select.select([sock], [], [], 1.0)
+                if pronto:
+                    try:
+                        if sock.recv(1) == b"":
+                            break
+                    except OSError:
                         break
-                except socket.timeout:
-                    continue
-                except OSError:
-                    break
         except OSError:
             pass
         finally:
+            with Controle.lock:
+                if Controle.sessao is sessao:
+                    Controle.sessao = None   # a bandeja volta a "Aguardando"
             sessao.parar()
             print("[-] %s desconectou" % cliente)
             Controle.terminou(geracao)
@@ -402,12 +433,14 @@ class Handler(BaseHTTPRequestHandler):
         self._trava = threading.Lock()
         self._vivo = True
         self._clip = {"ultimo": None, "ver": None, "ligado": False}
+        manter_vivo(self.connection)
         try:
             self.loop_input()
         except (OSError, ValueError):
             pass
-        self._vivo = False
-        win_input.touch_reset()
+        finally:
+            self._vivo = False   # para os vigias de clipboard e de programa
+            win_input.touch_reset()
         print("[controle] %s desconectou" % self.client_address[0])
 
     def loop_input(self):
@@ -443,7 +476,12 @@ class Handler(BaseHTTPRequestHandler):
                 win_clip.escrever(texto)
                 self._clip["ver"] = win_clip.versao()
                 continue
-            aplicar_evento(linha)
+            try:
+                aplicar_evento(linha)
+            except Exception as e:  # um evento ruim não pode derrubar o canal
+                self._erros_evento = getattr(self, "_erros_evento", 0) + 1
+                if self._erros_evento <= 5:
+                    print("[entrada] evento ignorado (%s: %s)" % (type(e).__name__, e))
 
     def _enviar(self, texto):
         with self._trava:
@@ -569,6 +607,14 @@ def vigiar_usb(porta):
     if not adb:
         return
     flags = 0x08000000 if _WIN else 0
+    # O servidor do adb (daemon) herdaria os pipes de captura e travaria esta
+    # thread no Windows; sobe antes, sem pipes.
+    try:
+        subprocess.run([adb, "start-server"], stdin=subprocess.DEVNULL,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                       timeout=20, creationflags=flags)
+    except (OSError, subprocess.SubprocessError):
+        pass
     feitos = set()
     while True:
         try:
@@ -645,9 +691,8 @@ def rodar_bandeja(ao_sair):
     d.rectangle((18, 54, 46, 58), fill=(3, 129, 254, 255))
 
     def estado(_item):  # texto dinâmico: o pystray passa só o item
-        with Controle.lock:
-            em_uso = Controle.sessao is not None
-        return "Tablet conectado" if em_uso else "Aguardando o tablet"
+        # Sem lock: esta função roda na thread da bandeja, que não pode esperar.
+        return "Tablet conectado" if Controle.sessao is not None else "Aguardando o tablet"
 
     def desligar(_icon, _item):
         tela_virtual.desativar()
@@ -720,7 +765,103 @@ def iniciar_com_windows(ligar):
                 pass
 
 
+def desligar_quickedit():
+    """Clicar na janela do console seleciona texto e CONGELA o próximo print()
+    (e com ele as conexões) até apertar Enter. Desliga esse modo."""
+    if not _WIN:
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k = ctypes.WinDLL("kernel32", use_last_error=True)
+        k.GetStdHandle.restype = wintypes.HANDLE
+        k.GetConsoleMode.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        k.SetConsoleMode.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        h = k.GetStdHandle(-10)  # STD_INPUT_HANDLE
+        modo = wintypes.DWORD()
+        if k.GetConsoleMode(h, ctypes.byref(modo)):
+            # 0x80 = ENABLE_EXTENDED_FLAGS, 0x40 = ENABLE_QUICK_EDIT_MODE
+            k.SetConsoleMode(h, (modo.value | 0x80) & ~0x40)
+    except Exception:
+        pass
+
+
+def autoteste():
+    """--selftest: confere se tudo que o servidor usa veio dentro do .exe."""
+    import importlib
+    ok = True
+
+    def modulo(nome, critico=True):
+        nonlocal ok
+        try:
+            importlib.import_module(nome)
+            print("  ok     %s" % nome)
+        except Exception as e:
+            print("  FALTA  %s (%s: %s)%s" % (nome, type(e).__name__, e,
+                                              "" if critico else "  [opcional]"))
+            if critico:
+                ok = False
+
+    print("Autoteste do Segunda Tela %s (build %s)" % (VERSAO, BUILD))
+    for nome in ("PIL.Image", "PIL.ImageDraw", "mss", "numpy", "qrcode", "zeroconf"):
+        modulo(nome)
+    if _WIN:
+        modulo("pystray")
+        modulo("winreg")
+    modulo("soundcard", critico=False)  # som é opcional (pode não haver áudio no CI)
+    if getattr(sys, "frozen", False):
+        itens = {"ffmpeg": video.caminho_ffmpeg(), "adb": caminho_adb(),
+                 "driver": os.path.join(getattr(sys, "_MEIPASS", ""), "drivers", "MttVDD.inf")}
+        for nome, caminho in itens.items():
+            existe = bool(caminho) and os.path.exists(caminho)
+            print("  %s  %s" % ("ok    " if existe else "FALTA ", nome))
+            ok = ok and existe
+    print("RESULTADO:", "tudo certo" if ok else "FALHOU")
+    return ok
+
+
 def main():
+    """Executa o servidor; qualquer erro vira arquivo de log e a janela espera
+    você ler, em vez de fechar sem deixar rastro."""
+    try:
+        sys.stdout.reconfigure(errors="replace")
+        sys.stderr.reconfigure(errors="replace")
+    except (AttributeError, OSError, ValueError):
+        pass
+    log = None
+    try:
+        import faulthandler
+        log = open(os.path.join(config.pasta(), "erro.log"), "a", encoding="utf-8")
+        log.write("\n=== %s (versão %s, build %s) ===\n"
+                  % (time.strftime("%Y-%m-%d %H:%M:%S"), VERSAO, BUILD))
+        log.flush()
+        faulthandler.enable(file=log)   # também registra quedas nativas (ctypes)
+    except Exception:
+        pass
+    try:
+        _main()
+    except (SystemExit, KeyboardInterrupt):
+        raise
+    except BaseException:
+        import traceback
+        texto = traceback.format_exc()
+        print("\n" + texto)
+        try:
+            if log:
+                log.write(texto)
+                log.flush()
+        except OSError:
+            pass
+        print("O servidor encontrou um erro e parou. O texto acima também foi salvo em:")
+        print("  " + os.path.join(config.pasta(), "erro.log"))
+        try:
+            input("Pressione Enter para fechar...")
+        except (EOFError, OSError):
+            pass
+        sys.exit(1)
+
+
+def _main():
     p = argparse.ArgumentParser(description="Servidor Segunda Tela")
     p.add_argument("--porta", type=int, default=8080)
     p.add_argument("--pin", default="")
@@ -731,7 +872,14 @@ def main():
                    help="abrir o servidor junto com o Windows")
     p.add_argument("--direto", choices=["5", "2.4", "auto"],
                    help="ligar a rede direta (hotspot do PC) ao abrir")
+    p.add_argument("--sem-bandeja", action="store_true",
+                   help="não criar o ícone da bandeja (só o console)")
+    p.add_argument("--selftest", action="store_true",
+                   help="verifica se tudo veio dentro do executável e sai")
     a = p.parse_args()
+
+    if a.selftest:
+        sys.exit(0 if autoteste() else 1)
 
     if a.instalar_driver:  # processo elevado (UAC)
         ok = tela_virtual.instalar_driver_admin()
@@ -750,20 +898,20 @@ def main():
         return
 
     win_display.ativar_dpi()
+    desligar_quickedit()
     if _WIN:
-        os.system("title Segunda Tela - servidor %s" % VERSAO)
+        os.system("title Segunda Tela - servidor %s (build %s)" % (VERSAO, BUILD))
 
     Handler.pin = a.pin.strip()
     try:
-        srv = ThreadingHTTPServer(("0.0.0.0", a.porta), Handler)
+        srv = Servidor(("0.0.0.0", a.porta), Handler)
     except OSError as e:
         print("Não foi possível abrir a porta %d: %s" % (a.porta, e))
         input("Enter para sair...")
         sys.exit(1)
-    srv.daemon_threads = True
 
     print("=" * 56)
-    print(" Segunda Tela - servidor %s" % VERSAO)
+    print(" Segunda Tela - servidor %s   (build %s)" % (VERSAO, BUILD))
     print("=" * 56)
     # Tela estendida: instala o monitor virtual já na abertura (1ª vez).
     if _WIN:
@@ -812,8 +960,8 @@ def main():
                 limpar()
             return 0
 
-        main._handler = _HANDLER(ao_fechar)  # manter referência viva
-        ctypes.windll.kernel32.SetConsoleCtrlHandler(main._handler, True)
+        _main._handler = _HANDLER(ao_fechar)  # manter referência viva
+        ctypes.windll.kernel32.SetConsoleCtrlHandler(_main._handler, True)
 
     threading.Thread(target=vigiar_usb, args=(a.porta,), daemon=True).start()
     threading.Thread(target=srv.serve_forever, daemon=True).start()
@@ -821,7 +969,7 @@ def main():
         # Ícone na bandeja do Windows (bloqueia até "Sair"). Sem pystray, ou se a
         # bandeja falhar por qualquer motivo, o servidor continua pelo console.
         usou_bandeja = False
-        if _WIN:
+        if _WIN and not a.sem_bandeja:
             try:
                 usou_bandeja = rodar_bandeja(limpar)
             except Exception as e:
@@ -833,11 +981,15 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        limpar()
-        if zc:
-            zc.unregister_service(info)
-            zc.close()
-        srv.shutdown()
+        # Cada passo protegido: um erro em um não pode pular os outros.
+        for passo in (limpar,
+                      lambda: zc and zc.unregister_service(info),
+                      lambda: zc and zc.close(),
+                      srv.shutdown):
+            try:
+                passo()
+            except Exception as e:
+                print("[encerrar] %s: %s" % (type(e).__name__, e))
 
 
 if __name__ == "__main__":

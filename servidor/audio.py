@@ -30,6 +30,7 @@ def transmitir(sock, continuar):
         import ctypes
         # A captura usa COM; cada thread precisa inicializar.
         ctypes.windll.ole32.CoInitializeEx(None, 0)
+    sock.settimeout(5)  # tablet que sumiu sem avisar não prende esta thread
     import numpy as np
     import soundcard as sc
     alto_falante = sc.default_speaker()

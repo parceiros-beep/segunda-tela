@@ -30,6 +30,7 @@ DESCRICAO = "virtual display"  # trecho do DeviceString do adaptador
 
 _ativo = False
 _nome = ""
+_tentou_instalar = False   # recusou o administrador? não pergunta de novo nesta execução
 
 
 def _pasta_embutida():
@@ -55,7 +56,17 @@ def _comando(cmd, ler=False):
     import ctypes
     from ctypes import wintypes
     k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    # Tipos explícitos: HANDLE de 64 bits passado como int comum é truncado.
     k32.CreateFileW.restype = wintypes.HANDLE
+    k32.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD,
+                                wintypes.HANDLE]
+    k32.WaitNamedPipeW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD]
+    k32.WriteFile.argtypes = [wintypes.HANDLE, wintypes.LPCVOID, wintypes.DWORD,
+                              ctypes.POINTER(wintypes.DWORD), wintypes.LPVOID]
+    k32.ReadFile.argtypes = [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+                             ctypes.POINTER(wintypes.DWORD), wintypes.LPVOID]
+    k32.CloseHandle.argtypes = [wintypes.HANDLE]
     for _ in range(20):
         h = k32.CreateFileW(PIPE, 0xC0000000, 0, None, 3, 0, None)
         if h and h != wintypes.HANDLE(-1).value:
@@ -83,8 +94,12 @@ def instalado():
 # ---------------------------------------------------------------- instalação
 def instalar_se_preciso():
     """Garante o driver. Pede administrador (UAC) só na primeira vez."""
+    global _tentou_instalar
     if not _WIN or instalado():
         return True
+    if _tentou_instalar:  # já tentou (ou o usuário recusou): não pede de novo a cada conexão
+        return False
+    _tentou_instalar = True
     if not os.path.isdir(_pasta_embutida()):
         print("[tela estendida] Driver não veio junto com o servidor.")
         return False
@@ -119,8 +134,12 @@ def instalar_se_preciso():
     if not ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei)):
         print("[tela estendida] Permissão de administrador negada.")
         return False
-    ctypes.windll.kernel32.WaitForSingleObject(sei.hProcess, 180000)
-    ctypes.windll.kernel32.CloseHandle(sei.hProcess)
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.WaitForSingleObject.argtypes = [w.HANDLE, w.DWORD]
+    k.WaitForSingleObject.restype = w.DWORD
+    k.CloseHandle.argtypes = [w.HANDLE]
+    k.WaitForSingleObject(sei.hProcess, 180000)
+    k.CloseHandle(sei.hProcess)
     for _ in range(30):
         if instalado():
             print("[tela estendida] Monitor virtual instalado.")

@@ -279,6 +279,11 @@ class Sessao:
                 p.kill()
             except OSError:
                 pass
+        if p:
+            try:
+                p.wait(timeout=3)   # recolhe o processo encerrado (sem zumbi/handle preso)
+            except Exception:
+                pass
 
 
 class LeitorFLV:

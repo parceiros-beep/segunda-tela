@@ -152,9 +152,12 @@ if _WIN:
             if ch == "\n":
                 _send(_ki(VK["ENTER"], 0)); _send(_ki(VK["ENTER"], KEYEVENTF_KEYUP))
                 continue
-            code = ord(ch)
-            _send(_ki(0, KEYEVENTF_UNICODE, scan=code))
-            _send(_ki(0, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, scan=code))
+            # Emoji e outros caracteres acima de U+FFFF vão como par substituto UTF-16.
+            dados = ch.encode("utf-16-le")
+            for i in range(0, len(dados), 2):
+                code = int.from_bytes(dados[i:i + 2], "little")
+                _send(_ki(0, KEYEVENTF_UNICODE, scan=code))
+                _send(_ki(0, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, scan=code))
 
 
     def key_down(vk):
@@ -227,6 +230,23 @@ if _WIN:
     _toques = {}       # id -> (x, y)
     _caneta = None     # HSYNTHETICPOINTERDEVICE
     _caneta_estado = {"contato": False}
+
+    def _assinar(nome, restype, *argtypes):
+        """Tipos explícitos: em Windows 64 bits, um HANDLE passado como int comum
+        é truncado para 32 bits (erro ou queda)."""
+        try:
+            f = getattr(user32, nome)
+        except AttributeError:   # Windows antigo sem essa função
+            return
+        f.restype = restype
+        f.argtypes = list(argtypes)
+
+    _assinar("InitializeTouchInjection", wintypes.BOOL, wintypes.UINT, wintypes.DWORD)
+    _assinar("InjectTouchInput", wintypes.BOOL, wintypes.UINT, ctypes.c_void_p)
+    _assinar("CreateSyntheticPointerDevice", wintypes.HANDLE,
+             wintypes.DWORD, wintypes.ULONG, wintypes.DWORD)
+    _assinar("InjectSyntheticPointerInput", wintypes.BOOL,
+             wintypes.HANDLE, ctypes.c_void_p, wintypes.UINT)
 
     def _iniciar_toque():
         global _touch_pronto

@@ -7,3 +7,4 @@ android/local.properties
 dist/
 build/
 entrega/
+servidor/versao_build.py

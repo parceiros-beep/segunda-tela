@@ -61,6 +61,13 @@ jobs:
 
           Get-ChildItem extras -Recurse | Format-Table FullName, Length
 
+      - name: Marcar o número do build
+        shell: pwsh
+        run: |
+          $b = "$env:GITHUB_RUN_NUMBER-" + $env:GITHUB_SHA.Substring(0,7)
+          Set-Content -Path servidor\versao_build.py -Value "BUILD = '$b'" -Encoding ascii
+          Get-Content servidor\versao_build.py
+
       - name: Gerar executável
         run: >
           pyinstaller --onedir --console --noconfirm --name SegundaTela-Servidor
@@ -69,6 +76,12 @@ jobs:
           --add-data "extras/drivers;drivers"
           --add-data "extras/adb;adb"
           servidor/segunda_tela_servidor.py
+
+      - name: Autoteste do executável (tudo veio dentro do .exe?)
+        shell: pwsh
+        run: |
+          & dist\SegundaTela-Servidor\SegundaTela-Servidor.exe --selftest
+          if ($LASTEXITCODE -ne 0) { throw 'autoteste falhou: falta algo dentro do executavel' }
 
       - name: Teste rápido do executável
         shell: pwsh

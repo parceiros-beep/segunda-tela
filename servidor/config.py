@@ -3,11 +3,15 @@ import json
 import os
 
 
-def _arquivo():
+def pasta():
     base = os.environ.get("APPDATA") or os.path.expanduser("~")
-    pasta = os.path.join(base, "SegundaTela")
-    os.makedirs(pasta, exist_ok=True)
-    return os.path.join(pasta, "config.json")
+    p = os.path.join(base, "SegundaTela")
+    os.makedirs(p, exist_ok=True)
+    return p
+
+
+def _arquivo():
+    return os.path.join(pasta(), "config.json")
 
 
 def ler(chave, padrao=None):

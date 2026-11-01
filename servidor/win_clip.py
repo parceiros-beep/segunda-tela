@@ -32,19 +32,41 @@ if _WIN:
     kernel32.GlobalLock.argtypes = [wintypes.HGLOBAL]
     kernel32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
 
+    user32.CreateWindowExW.restype = wintypes.HWND
+    user32.CreateWindowExW.argtypes = [
+        wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
+        ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+        wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]
+    user32.DestroyWindow.argtypes = [wintypes.HWND]
+    kernel32.GlobalFree.argtypes = [wintypes.HGLOBAL]
+    kernel32.GlobalFree.restype = wintypes.HGLOBAL
+
     def _abrir():
+        """Abre a área de transferência com uma janela própria. Com o dono NULL,
+        o SetClipboardData falha (documentado pela Microsoft), e copiar do
+        tablet para o PC nunca funcionaria. Devolve (ok, janela)."""
+        hwnd = user32.CreateWindowExW(0, "STATIC", "SegundaTelaClip", 0,
+                                      0, 0, 0, 0, None, None, None, None)
         # Outro programa pode estar com a área de transferência aberta.
         for _ in range(10):
-            if user32.OpenClipboard(None):
-                return True
+            if user32.OpenClipboard(hwnd):
+                return True, hwnd
             time.sleep(0.02)
-        return False
+        if hwnd:
+            user32.DestroyWindow(hwnd)
+        return False, None
+
+    def _fechar(hwnd):
+        user32.CloseClipboard()
+        if hwnd:
+            user32.DestroyWindow(hwnd)
 
     def versao():
         return user32.GetClipboardSequenceNumber()
 
     def ler():
-        if not _abrir():
+        ok, hwnd = _abrir()
+        if not ok:
             return None
         try:
             h = user32.GetClipboardData(CF_UNICODETEXT)
@@ -58,7 +80,7 @@ if _WIN:
             finally:
                 kernel32.GlobalUnlock(h)
         finally:
-            user32.CloseClipboard()
+            _fechar(hwnd)
 
     def escrever(texto):
         dados = ctypes.create_unicode_buffer(texto)
@@ -69,14 +91,19 @@ if _WIN:
         p = kernel32.GlobalLock(h)
         ctypes.memmove(p, dados, tam)
         kernel32.GlobalUnlock(h)
-        if not _abrir():
+        ok, hwnd = _abrir()
+        if not ok:
+            kernel32.GlobalFree(h)
             return False
         try:
             user32.EmptyClipboard()
-            # Depois de SetClipboardData o Windows é dono da memória.
-            return bool(user32.SetClipboardData(CF_UNICODETEXT, h))
+            # Depois de SetClipboardData bem-sucedido o Windows é dono da memória.
+            if user32.SetClipboardData(CF_UNICODETEXT, h):
+                return True
+            kernel32.GlobalFree(h)
+            return False
         finally:
-            user32.CloseClipboard()
+            _fechar(hwnd)
 
 else:
     _texto = [None]
