@@ -59,12 +59,53 @@ except ImportError:  # descoberta automática é opcional
     Zeroconf = None
 
 BOUNDARY = "segundatela"
-VERSAO = "3.8"
+VERSAO = "3.9"
 try:  # o CI grava este arquivo com o número da compilação e o commit
     from versao_build import BUILD
 except ImportError:
     BUILD = "desenvolvimento"
 _WIN = sys.platform == "win32"
+_SEM_JANELA = 0x08000000 if _WIN else 0   # CREATE_NO_WINDOW para subprocessos
+_TEM_CONSOLE = True   # False no modo segundo plano (executável sem janela)
+
+
+def preparar_saida():
+    """Sem janela de console (modo segundo plano), print() não tem para onde ir
+    e o programa cairia ao imprimir: manda tudo para servidor.log."""
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    try:
+        caminho = os.path.join(config.pasta(), "servidor.log")
+        try:
+            if os.path.getsize(caminho) > 1_000_000:   # não deixa crescer sem fim
+                os.replace(caminho, caminho + ".antigo")
+        except OSError:
+            pass
+        arq = open(caminho, "a", encoding="utf-8", buffering=1)
+    except OSError:
+        arq = open(os.devnull, "w")
+    if sys.stdout is None:
+        sys.stdout = arq
+    if sys.stderr is None:
+        sys.stderr = arq
+
+
+def avisar(titulo, texto):
+    """Mostra um aviso: caixa de mensagem no modo segundo plano; no console,
+    imprime e espera Enter (para você conseguir ler antes de a janela fechar)."""
+    print("\n[%s] %s" % (titulo, texto))
+    if _WIN and not _TEM_CONSOLE:
+        try:
+            import ctypes
+            # MB_ICONERROR | MB_SETFOREGROUND | MB_TOPMOST
+            ctypes.windll.user32.MessageBoxW(None, texto, titulo, 0x10 | 0x10000 | 0x40000)
+        except Exception:
+            pass
+    elif _TEM_CONSOLE:
+        try:
+            input("Pressione Enter para fechar...")
+        except (EOFError, OSError, RuntimeError):
+            pass
 
 
 class Servidor(ThreadingHTTPServer):
@@ -697,6 +738,21 @@ def rodar_bandeja(ao_sair):
     def desligar(_icon, _item):
         tela_virtual.desativar()
 
+    def mostrar(icon, _item):
+        em_uso = "Tablet conectado" if Controle.sessao is not None else "Aguardando o tablet"
+        try:
+            icon.notify("%s\nIP deste PC: %s (porta %s)"
+                        % (em_uso, ip_principal() or "?", getattr(Controle, "porta", 8080)),
+                        "Segunda Tela")
+        except Exception:
+            pass
+
+    def ver_registro(_icon, _item):
+        try:
+            os.startfile(os.path.join(config.pasta(), "servidor.log"))
+        except OSError:
+            pass
+
     def direto(banda):
         def acao(icon, _item):
             def rodar():
@@ -731,8 +787,9 @@ def rodar_bandeja(ao_sair):
         icon.stop()
 
     menu = pystray.Menu(
-        pystray.MenuItem("Segunda Tela " + VERSAO, None, enabled=False),
+        pystray.MenuItem("Segunda Tela %s (build %s)" % (VERSAO, BUILD), None, enabled=False),
         pystray.MenuItem(estado, None, enabled=False),
+        pystray.MenuItem("Mostrar IP e status", mostrar, default=True),
         pystray.MenuItem("Desligar tela estendida", desligar),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Conexão direta 5 GHz", direto("5")),
@@ -744,8 +801,20 @@ def rodar_bandeja(ao_sair):
             pystray.MenuItem("5 GHz", ao_abrir("5"), checked=marcado("5"), radio=True),
             pystray.MenuItem("2,4 GHz", ao_abrir("2.4"), checked=marcado("2.4"), radio=True))),
         pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Ver registro (log)", ver_registro),
         pystray.MenuItem("Sair", sair))
-    pystray.Icon("segundatela", img, "Segunda Tela", menu).run()
+
+    def preparar(icone):
+        # Com 'setup', o ícone só aparece se pedirmos.
+        icone.visible = True
+        try:
+            icone.notify("Rodando em segundo plano. Clique no ícone para ver o IP "
+                         "deste PC. Para encerrar, use o menu do ícone > Sair.",
+                         "Segunda Tela")
+        except Exception:
+            pass
+
+    pystray.Icon("segundatela", img, "Segunda Tela", menu).run(preparar)
     return True
 
 
@@ -823,6 +892,9 @@ def autoteste():
 def main():
     """Executa o servidor; qualquer erro vira arquivo de log e a janela espera
     você ler, em vez de fechar sem deixar rastro."""
+    global _TEM_CONSOLE
+    _TEM_CONSOLE = sys.stdout is not None and sys.stderr is not None
+    preparar_saida()
     try:
         sys.stdout.reconfigure(errors="replace")
         sys.stderr.reconfigure(errors="replace")
@@ -852,12 +924,11 @@ def main():
                 log.flush()
         except OSError:
             pass
-        print("O servidor encontrou um erro e parou. O texto acima também foi salvo em:")
-        print("  " + os.path.join(config.pasta(), "erro.log"))
-        try:
-            input("Pressione Enter para fechar...")
-        except (EOFError, OSError):
-            pass
+        caminho = os.path.join(config.pasta(), "erro.log")
+        resumo = "\n".join(texto.strip().splitlines()[-4:])
+        avisar("Segunda Tela - erro",
+               "O servidor encontrou um erro e parou.\n\n%s\n\nO texto completo foi salvo em:\n%s"
+               % (resumo, caminho))
         sys.exit(1)
 
 
@@ -887,7 +958,7 @@ def _main():
             subprocess.run(["netsh", "advfirewall", "firewall", "add", "rule",
                             "name=Segunda Tela", "dir=in", "action=allow",
                             "program=%s" % sys.executable, "enable=yes"],
-                           capture_output=True)
+                           capture_output=True, creationflags=_SEM_JANELA)
         sys.exit(0 if ok else 1)
     if a.desinstalar_driver:
         tela_virtual.desinstalar_driver_admin()
@@ -899,15 +970,19 @@ def _main():
 
     win_display.ativar_dpi()
     desligar_quickedit()
-    if _WIN:
+    if _WIN and _TEM_CONSOLE:
         os.system("title Segunda Tela - servidor %s (build %s)" % (VERSAO, BUILD))
 
     Handler.pin = a.pin.strip()
+    Controle.porta = a.porta
     try:
         srv = Servidor(("0.0.0.0", a.porta), Handler)
     except OSError as e:
         print("Não foi possível abrir a porta %d: %s" % (a.porta, e))
-        input("Enter para sair...")
+        avisar("Segunda Tela",
+               "O Segunda Tela já está aberto neste PC (a porta %d está em uso).\n\n"
+               "Procure o ícone perto do relógio do Windows. Se não aparecer, "
+               "clique na setinha ^ ao lado do relógio." % a.porta)
         sys.exit(1)
 
     print("=" * 56)
@@ -974,7 +1049,13 @@ def _main():
                 usou_bandeja = rodar_bandeja(limpar)
             except Exception as e:
                 print("[bandeja] Não consegui criar o ícone (%s: %s). "
-                      "Seguindo só com o console." % (type(e).__name__, e))
+                      "Seguindo sem o ícone." % (type(e).__name__, e))
+                if not _TEM_CONSOLE:
+                    avisar("Segunda Tela",
+                           "Não consegui criar o ícone perto do relógio (%s).\n\n"
+                           "O servidor continua funcionando em segundo plano. Para "
+                           "encerrar, use o Gerenciador de Tarefas.\n\nDetalhes: %s"
+                           % (type(e).__name__, os.path.join(config.pasta(), "servidor.log")))
         if not usou_bandeja:
             while True:
                 time.sleep(1)

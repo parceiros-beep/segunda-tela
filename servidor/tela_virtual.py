@@ -23,6 +23,7 @@ import time
 import win_display
 
 _WIN = sys.platform == "win32"
+_SEM_JANELA = 0x08000000 if _WIN else 0   # sem console: sem janelas piscando
 DIR_CONF = r"C:\VirtualDisplayDriver"
 PIPE = r"\\.\pipe\MTTVirtualDisplayPipe"
 HWID = r"Root\MttVDD"
@@ -161,7 +162,7 @@ def instalar_driver_admin():
     # Usuários e o serviço do driver precisam poder gravar o XML.
     for sid in ("*S-1-5-32-545", "*S-1-5-19", "*S-1-1-0"):
         subprocess.run(["icacls", DIR_CONF, "/grant", sid + ":(OI)(CI)M", "/T", "/Q"],
-                       capture_output=True)
+                       capture_output=True, creationflags=_SEM_JANELA)
     inf = os.path.join(DIR_CONF, "MttVDD.inf")
     cat = os.path.join(DIR_CONF, "mttvdd.cat")
     # Certificado do catálogo -> Editores Confiáveis (instalação silenciosa).
@@ -174,14 +175,14 @@ def instalar_driver_admin():
     subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
                     "-EncodedCommand",
                     base64.b64encode(ps.encode("utf-16-le")).decode()],
-                   capture_output=True)
+                   capture_output=True, creationflags=_SEM_JANELA)
     nefcon = os.path.join(DIR_CONF, "nefconw.exe")
-    r = subprocess.run([nefcon, "install", inf, HWID], capture_output=True)
+    r = subprocess.run([nefcon, "install", inf, HWID], capture_output=True, creationflags=_SEM_JANELA)
     print("nefcon:", r.returncode)
     # Registro do caminho de configuração lido pelo driver.
     subprocess.run(["reg", "add", r"HKLM\SOFTWARE\MikeTheTech\VirtualDisplayDriver",
                     "/v", "VDDPATH", "/t", "REG_SZ", "/d", DIR_CONF, "/f"],
-                   capture_output=True)
+                   capture_output=True, creationflags=_SEM_JANELA)
     time.sleep(5)
     for _ in range(10):
         if _monitor_virtual() is not None:
@@ -195,7 +196,7 @@ def desinstalar_driver_admin():
     nefcon = os.path.join(DIR_CONF, "nefconw.exe")
     subprocess.run([nefcon, "--remove-device-node", "--hardware-id", HWID,
                     "--class-guid", "4d36e968-e325-11ce-bfc1-08002be10318"],
-                   capture_output=True)
+                   capture_output=True, creationflags=_SEM_JANELA)
 
 
 # ---------------------------------------------------------------- config

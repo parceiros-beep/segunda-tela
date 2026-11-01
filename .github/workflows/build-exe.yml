@@ -70,7 +70,7 @@ jobs:
 
       - name: Gerar executável
         run: >
-          pyinstaller --onedir --console --noconfirm --name SegundaTela-Servidor
+          pyinstaller --onedir --noconsole --noconfirm --name SegundaTela-Servidor
           --collect-submodules zeroconf --collect-submodules pystray --collect-all soundcard
           --add-binary "extras/ffmpeg.exe;."
           --add-data "extras/drivers;drivers"
@@ -80,14 +80,18 @@ jobs:
       - name: Autoteste do executável (tudo veio dentro do .exe?)
         shell: pwsh
         run: |
-          & dist\SegundaTela-Servidor\SegundaTela-Servidor.exe --selftest
-          if ($LASTEXITCODE -ne 0) { throw 'autoteste falhou: falta algo dentro do executavel' }
+          # Executável sem janela: não bloqueia o terminal nem tem saída; a saída
+          # vai para o servidor.log, que mostramos aqui.
+          $exe = "dist\SegundaTela-Servidor\SegundaTela-Servidor.exe"
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest' -Wait -PassThru
+          Get-Content "$env:APPDATA\SegundaTela\servidor.log" -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { throw 'autoteste falhou: falta algo dentro do executavel' }
 
       - name: Teste rápido do executável
         shell: pwsh
         run: |
-          & dist\SegundaTela-Servidor\SegundaTela-Servidor.exe --help
-          if ($LASTEXITCODE -ne 0) { throw 'executavel falhou' }
+          $p = Start-Process -FilePath "dist\SegundaTela-Servidor\SegundaTela-Servidor.exe" -ArgumentList '--help' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw 'executavel falhou' }
 
       - name: Gerar instalador
         shell: pwsh

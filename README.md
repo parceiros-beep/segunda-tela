@@ -54,6 +54,16 @@ No app, toque em **Conexão direta 5 GHz** (ou 2,4 GHz). O PC liga o Hotspot mó
 
 Instale o [Tailscale](https://tailscale.com) (gratuito) no PC e no tablet, com a mesma conta. No app, digite o IP do PC no Tailscale (100.x.x.x) e toque em Conectar. Use um PIN no servidor (`--pin`).
 
+## Em segundo plano (sem janela preta)
+
+O servidor roda **sem janela**: só o ícone perto do relógio do Windows (se não aparecer, clique na setinha ^). Não precisa deixar nada aberto.
+
+- **Clique no ícone** para ver o IP do PC e se o tablet está conectado.
+- **Menu do ícone:** conexão direta, QR code, ver o registro (log) e **Sair**.
+- No instalador, a opção **"Abrir o Segunda Tela junto com o Windows"** deixa tudo pronto sozinho ao ligar o PC.
+- Se abrir o programa uma segunda vez, ele avisa que já está rodando.
+- Os avisos que apareciam na janela preta ficam em `%APPDATA%\SegundaTela\servidor.log` (menu do ícone › *Ver registro*). Erros graves vão para `erro.log` e aparecem numa caixa de aviso.
+
 ## Servidor
 
 - Porta e PIN: `SegundaTela-Servidor.exe --porta 8080 --pin 1234`
